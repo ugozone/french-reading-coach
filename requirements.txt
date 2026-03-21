@@ -1,4 +1,6 @@
-streamlight
+streamlit
+gTTS
+openai-whisper
 boto3
 requests
 pypdf
