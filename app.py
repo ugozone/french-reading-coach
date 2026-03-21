@@ -13,9 +13,11 @@ import html
 from datetime import datetime
 from teacher_texts import TEACHER_TEXTS
 
-os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = "/opt/homebrew/lib/libespeak.dylib"
-EspeakWrapper.set_library("/opt/homebrew/lib/libespeak.dylib")
+import platform
 
+if platform.system() == "Darwin":
+    os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = "/opt/homebrew/lib/libespeak.dylib"
+    EspeakWrapper.set_library("/opt/homebrew/lib/libespeak.dylib")
 st.set_page_config(page_title="French Reading Coach AI", page_icon="🇫🇷")
 
 st.title("🇫🇷 French Reading Coach AI")
