@@ -1,0 +1,6 @@
+streamlight
+boto3
+requests
+pypdf
+docx2txt
+phonemizer
