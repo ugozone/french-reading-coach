@@ -1,6 +1,6 @@
 streamlit
 gTTS
-boto3
+openai_whisper
 requests
 pypdf
 docx2txt
