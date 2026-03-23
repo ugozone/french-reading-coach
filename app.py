@@ -1,4 +1,4 @@
-import streamlit as st from g
+import streamlit as st 
 gtts import gTTS
 import tempfile
 import whisper
