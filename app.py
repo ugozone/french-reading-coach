@@ -933,14 +933,13 @@ if "phrase_history" not in st.session_state:
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "Sign In"
 
+
 # =========================================================
 # Authentication UI
 # =========================================================
 st.sidebar.header("👤 Account")
 
 auth_mode = st.sidebar.radio("Choose", ["Sign In", "Sign Up"])
-
-user = None
 
 if auth_mode == "Sign Up":
     signup_name = st.sidebar.text_input("Full name")
@@ -968,31 +967,19 @@ else:
                 "email": signin_email,
                 "password": signin_password,
             })
-            st.session_state["user"] = result.user
             st.sidebar.success("Signed in successfully")
             st.rerun()
         except Exception as e:
             st.sidebar.error(f"Sign in failed: {e}")
 
-# Restore session
-if "user" in st.session_state:
-    user = st.session_state["user"]
-else:
-    try:
-        user_response = supabase.auth.get_user()
-        user = user_response.user
-    except:
-        user = None
+current_user = get_current_user()
+current_user_id = current_user.id if current_user else None
 
-# Show status
-if user:
-    st.sidebar.success(f"Logged in as {user.email}")
-
+if current_user:
+    st.sidebar.success(f"Logged in as {current_user.email}")
     if st.sidebar.button("Sign out"):
         supabase.auth.sign_out()
-        st.session_state.pop("user", None)
         st.rerun()
-
 else:
     st.warning("Please sign in to save and track progress.")
     st.stop()
