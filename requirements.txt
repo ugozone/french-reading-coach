@@ -1,8 +1,8 @@
 streamlit
 gTTS
-openai-whisper
 boto3
 requests
 pypdf
 docx2txt
 phonemizer
+supabase
