@@ -936,58 +936,66 @@ if "auth_mode" not in st.session_state:
 # =========================================================
 # Authentication UI
 # =========================================================
-st.sidebar.header("Account")
+st.sidebar.header("👤 Account")
 
-if not auth_ready():
-    st.sidebar.warning("Supabase is not configured. Add SUPABASE_URL and SUPABASE_KEY in Streamlit secrets.")
-    current_user = None
+auth_mode = st.sidebar.radio("Choose", ["Sign In", "Sign Up"])
+
+user = None
+
+if auth_mode == "Sign Up":
+    signup_name = st.sidebar.text_input("Full name")
+    signup_email = st.sidebar.text_input("Email", key="signup_email")
+    signup_password = st.sidebar.text_input("Password", type="password", key="signup_password")
+
+    if st.sidebar.button("Create account"):
+        try:
+            result = supabase.auth.sign_up({
+                "email": signup_email,
+                "password": signup_password,
+                "options": {"data": {"full_name": signup_name}},
+            })
+            st.sidebar.success("Account created. Now sign in.")
+        except Exception as e:
+            st.sidebar.error(f"Sign up failed: {e}")
+
 else:
-    auth_mode = st.sidebar.radio("Choose", ["Sign In", "Sign Up"], key="auth_mode")
+    signin_email = st.sidebar.text_input("Email", key="signin_email")
+    signin_password = st.sidebar.text_input("Password", type="password", key="signin_password")
 
-    if auth_mode == "Sign Up":
-        signup_name = st.sidebar.text_input("Full name")
-        signup_email = st.sidebar.text_input("Email", key="signup_email")
-        signup_password = st.sidebar.text_input("Password", type="password", key="signup_password")
-
-        if st.sidebar.button("Create account"):
-            try:
-                result = sign_up_user(signup_email, signup_password, signup_name)
-                if result.user:
-                    st.sidebar.success("Account created. Check your email if confirmation is enabled.")
-                else:
-                    st.sidebar.warning("Signup submitted.")
-            except Exception as e:
-                st.sidebar.error(f"Sign up failed: {e}")
-
-    else:
-        signin_email = st.sidebar.text_input("Email", key="signin_email")
-        signin_password = st.sidebar.text_input("Password", type="password", key="signin_password")
-
-        if st.sidebar.button("Sign in"):
-            try:
-                result = sign_in_user(signin_email, signin_password)
-                if result.user:
-                    st.sidebar.success("Signed in.")
-                    st.rerun()
-                else:
-                    st.sidebar.error("Sign in failed.")
-            except Exception as e:
-                st.sidebar.error(f"Sign in failed: {e}")
-
-    current_user = get_current_user()
-
-    if current_user:
-        st.sidebar.success(f"Logged in as {current_user.email}")
-        if st.sidebar.button("Sign out"):
-            sign_out_user()
+    if st.sidebar.button("Sign in"):
+        try:
+            result = supabase.auth.sign_in_with_password({
+                "email": signin_email,
+                "password": signin_password,
+            })
+            st.session_state["user"] = result.user
+            st.sidebar.success("Signed in successfully")
             st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"Sign in failed: {e}")
 
-if current_user is None:
-    st.info("Please sign in to save and track progress.")
+# Restore session
+if "user" in st.session_state:
+    user = st.session_state["user"]
+else:
+    try:
+        user_response = supabase.auth.get_user()
+        user = user_response.user
+    except:
+        user = None
+
+# Show status
+if user:
+    st.sidebar.success(f"Logged in as {user.email}")
+
+    if st.sidebar.button("Sign out"):
+        supabase.auth.sign_out()
+        st.session_state.pop("user", None)
+        st.rerun()
+
+else:
+    st.warning("Please sign in to save and track progress.")
     st.stop()
-
-ensure_lessons_seeded()
-
 # =========================================================
 # Input mode
 # =========================================================
