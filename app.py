@@ -1,4 +1,4 @@
- gtts import gTTS
+gtts import gTTS
 import tempfile
 import whisper
 import re
