@@ -1,6 +1,8 @@
+
 import os
 import streamlit as st
 from supabase import create_client, Client
+import requests
 
 
 def get_secret(name: str, default: str = "") -> str:
@@ -14,11 +16,14 @@ SUPABASE_URL = get_secret("SUPABASE_URL", "")
 SUPABASE_KEY = get_secret("SUPABASE_KEY", get_secret("SUPABASE_ANON_KEY", ""))
 
 
-@st.cache_resource
 def get_supabase() -> Client | None:
     if not SUPABASE_URL or not SUPABASE_KEY:
         return None
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        st.sidebar.error(f"Client creation failed: {e}")
+        return None
 
 
 supabase = get_supabase()
@@ -53,10 +58,15 @@ def get_current_user_email():
 
 def render_auth_sidebar():
     st.sidebar.header("👤 Account")
-
-    # Temporary debug lines
     st.sidebar.write("Supabase URL:", SUPABASE_URL)
     st.sidebar.write("Has Supabase key:", bool(SUPABASE_KEY))
+    st.sidebar.write("Client created:", bool(supabase))
+
+    try:
+        r = requests.get(SUPABASE_URL, timeout=10)
+        st.sidebar.write("Host test status:", r.status_code)
+    except Exception as e:
+        st.sidebar.write("Host test failed:", str(e))
 
     auth_mode = st.sidebar.radio("Choose", ["Sign In", "Sign Up"])
 
