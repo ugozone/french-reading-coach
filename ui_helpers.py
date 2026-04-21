@@ -3,9 +3,14 @@ import tempfile
 import streamlit as st
 from gtts import gTTS
 
-from speech import get_ipa, highlight_liaison_phrases if False else None
-from speech import word_feedback, pronunciation_score, transcribe_audio_file, generate_coaching_message
-from speech import get_ipa, clean_word
+from speech import (
+    get_ipa,
+    clean_word,
+    word_feedback,
+    pronunciation_score,
+    transcribe_audio_file,
+    generate_coaching_message,
+)
 from db import save_phrase_attempt_to_db
 
 
@@ -35,11 +40,11 @@ def render_lesson_card(text_data: dict):
             <div style="margin-bottom: 4px;"><strong>Theme:</strong> {html.escape(text_data.get("theme", ""))}</div>
             <div style="margin-bottom: 4px;"><strong>Pronunciation focus:</strong> {html.escape(text_data.get("focus", ""))}</div>
             <div style="margin-bottom: 4px;"><strong>Grammar focus:</strong> {html.escape(text_data.get("grammar_focus", ""))}</div>
-            <div style="margin-bottom: 4px;"><strong>Skills:</strong> {html.escape(', '.join(text_data.get("skills", [])))}</div>
+            <div style="margin-bottom: 4px;"><strong>Skills:</strong> {html.escape(", ".join(text_data.get("skills", [])))}</div>
             <div style="margin-bottom: 4px;"><strong>Teacher tip:</strong> {html.escape(text_data.get("teacher_tip", ""))}</div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
 
@@ -61,7 +66,7 @@ def render_coaching_message(message: str):
             {html.escape(message)}
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
 
@@ -140,13 +145,13 @@ def highlight_liaison_phrases(text: str, liaison_points: list) -> str:
             ">
                 {escaped_phrase}
             </span>
-            """
+            """,
         )
 
     return highlighted_text
 
 
-def play_phrase_audio(phrase: str, key_suffix: str, label: str = None):
+def play_phrase_audio(phrase: str, key_suffix: str, label: str | None = None):
     try:
         button_label = label if label else f"🔊 Hear only: {phrase}"
 
@@ -165,7 +170,7 @@ def analyze_phrase_pronunciation(
     key_prefix: str,
     current_user_id: str | None,
     current_lesson_id,
-    reference_text: str
+    reference_text: str,
 ):
     if audio_file is None:
         return None
@@ -206,11 +211,16 @@ def analyze_phrase_pronunciation(
             "recognized_phrase": transcript,
             "score": score,
             "feedback": feedback,
-            "timestamp": __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "timestamp": __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
         if current_user_id:
-            save_phrase_attempt_to_db(current_user_id, current_lesson_id, reference_text, phrase_result)
+            save_phrase_attempt_to_db(
+                current_user_id,
+                current_lesson_id,
+                reference_text,
+                phrase_result,
+            )
 
         return phrase_result
 
@@ -227,7 +237,7 @@ def render_pronunciation_focus(
     current_lesson_id,
     phrase_history_key: str,
     max_phrase_attempts: int,
-    enable_phrase_recording: bool = False
+    enable_phrase_recording: bool = False,
 ):
     if not liaison_points:
         return
@@ -246,7 +256,7 @@ def render_pronunciation_focus(
             {highlighted}
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     for idx, point in enumerate(liaison_points):
@@ -287,13 +297,13 @@ def render_pronunciation_focus(
                     </div>
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
             play_phrase_audio(
                 phrase,
                 key_suffix=f"{context}_{idx}_{clean_word(phrase)}",
-                label=f"🔊 Hear only: {phrase}"
+                label=f"🔊 Hear only: {phrase}",
             )
 
             if enable_phrase_recording:
@@ -301,7 +311,7 @@ def render_pronunciation_focus(
 
                 phrase_audio = st.audio_input(
                     f"🎤 Record only this phrase: {phrase}",
-                    key=f"phrase_audio_{context}_{idx}_{clean_word(phrase)}"
+                    key=f"phrase_audio_{context}_{idx}_{clean_word(phrase)}",
                 )
 
                 if phrase_audio is not None:
@@ -309,7 +319,7 @@ def render_pronunciation_focus(
 
                     if st.button(
                         f"📊 Analyze phrase: {phrase}",
-                        key=f"analyze_phrase_{context}_{idx}_{clean_word(phrase)}"
+                        key=f"analyze_phrase_{context}_{idx}_{clean_word(phrase)}",
                     ):
                         phrase_result = analyze_phrase_pronunciation(
                             phrase=phrase,
@@ -317,13 +327,15 @@ def render_pronunciation_focus(
                             key_prefix=f"{context}_{idx}_{clean_word(phrase)}",
                             current_user_id=current_user_id,
                             current_lesson_id=current_lesson_id,
-                            reference_text=text
+                            reference_text=text,
                         )
 
                         if phrase_result is not None:
-                            st.session_state[phrase_history_key].append({
-                                "context": context,
-                                "reference_text": text,
-                                "phrase_result": phrase_result
-                            })
+                            st.session_state[phrase_history_key].append(
+                                {
+                                    "context": context,
+                                    "reference_text": text,
+                                    "phrase_result": phrase_result,
+                                }
+                            )
                             st.session_state[phrase_history_key] = st.session_state[phrase_history_key][-max_phrase_attempts:]

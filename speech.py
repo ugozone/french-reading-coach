@@ -1,8 +1,8 @@
 import os
-import html
 import tempfile
 import re
 from difflib import SequenceMatcher
+
 from pypdf import PdfReader
 import docx2txt
 import whisper
@@ -74,7 +74,7 @@ def word_feedback(reference: str, spoken: str):
             "spoken": spk_word,
             "similarity": round(similarity * 100, 1),
             "status": status,
-            "color": color
+            "color": color,
         })
 
     return feedback
@@ -102,7 +102,7 @@ def get_ipa(word: str) -> str:
             word,
             language="fr-fr",
             backend="espeak",
-            strip=True
+            strip=True,
         )
 
         if ipa is None:
@@ -114,17 +114,13 @@ def get_ipa(word: str) -> str:
         return "IPA unavailable"
 
 
-def fallback_transcription(audio_path: str) -> str:
+def transcribe_audio_file(audio_path: str) -> str:
     try:
         result = model.transcribe(audio_path, language="fr", fp16=False)
         return result["text"].strip()
     except Exception as e:
         st.error(f"Fallback transcription failed: {e}")
         return ""
-
-
-def transcribe_audio_file(audio_path: str) -> str:
-    return fallback_transcription(audio_path)
 
 
 def extract_text_from_pdf(uploaded_file):
@@ -166,40 +162,40 @@ def detect_liaison_candidates(text: str):
         "les", "des", "mes", "tes", "ses", "nos", "vos", "leurs",
         "nous", "vous", "ils", "elles",
         "un", "deux", "trois", "six", "dix",
-        "petit", "grand", "bon", "comment"
+        "petit", "grand", "bon", "comment",
     }
 
     known_connected_ipa = {
         "comment allez-vous": {
             "connected_ipa": "/kɔmɑ̃.t‿ale.vu/",
             "focus_sound": "t‿a",
-            "tip": "Link the final sound of 'comment' smoothly to 'allez-vous'."
+            "tip": "Link the final sound of 'comment' smoothly to 'allez-vous'.",
         },
         "les amis": {
             "connected_ipa": "/le.z‿ami/",
             "focus_sound": "z‿a",
-            "tip": "Pronounce the liaison /z/ between 'les' and 'amis'."
+            "tip": "Pronounce the liaison /z/ between 'les' and 'amis'.",
         },
         "nous avons": {
             "connected_ipa": "/nu.z‿avɔ̃/",
             "focus_sound": "z‿a",
-            "tip": "Link 'nous' to 'avons' with a clear /z/."
+            "tip": "Link 'nous' to 'avons' with a clear /z/.",
         },
         "ils ont": {
             "connected_ipa": "/il.z‿ɔ̃/",
             "focus_sound": "z‿ɔ̃",
-            "tip": "Pronounce the liaison /z/ before 'ont'."
+            "tip": "Pronounce the liaison /z/ before 'ont'.",
         },
         "huit heures": {
             "connected_ipa": "/ɥit‿œʁ/",
             "focus_sound": "t‿œ",
-            "tip": "Make the /t/ connection audible before 'heures'."
+            "tip": "Make the /t/ connection audible before 'heures'.",
         },
         "six heures": {
             "connected_ipa": "/si.z‿œʁ/",
             "focus_sound": "z‿œ",
-            "tip": "Pronounce the linking /z/ before 'heures'."
-        }
+            "tip": "Pronounce the linking /z/ before 'heures'.",
+        },
     }
 
     for i in range(len(words) - 1):
@@ -216,7 +212,7 @@ def detect_liaison_candidates(text: str):
                 "phrase": phrase,
                 "connected_ipa": known_connected_ipa[phrase]["connected_ipa"],
                 "focus_sound": known_connected_ipa[phrase]["focus_sound"],
-                "tip": known_connected_ipa[phrase]["tip"]
+                "tip": known_connected_ipa[phrase]["tip"],
             })
             continue
 
@@ -237,7 +233,7 @@ def detect_liaison_candidates(text: str):
                 "phrase": phrase,
                 "connected_ipa": "Connected pronunciation target",
                 "focus_sound": liaison_sound if liaison_sound else "linked boundary",
-                "tip": f"Try to connect '{w1}' smoothly to '{w2}'."
+                "tip": f"Try to connect '{w1}' smoothly to '{w2}'.",
             })
 
     unique_candidates = []
