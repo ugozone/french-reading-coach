@@ -11,7 +11,7 @@ def get_secret(name: str, default: str = "") -> str:
 
 
 SUPABASE_URL = get_secret("SUPABASE_URL", "")
-SUPABASE_KEY = get_secret("SUPABASE_KEY", "")
+SUPABASE_KEY = get_secret("SUPABASE_KEY", get_secret("SUPABASE_ANON_KEY", ""))
 
 
 @st.cache_resource
@@ -44,8 +44,19 @@ def get_current_user_id():
     return user.id if user else None
 
 
+def get_current_user_email():
+    user = get_current_user()
+    if user and hasattr(user, "email"):
+        return user.email
+    return None
+
+
 def render_auth_sidebar():
     st.sidebar.header("👤 Account")
+
+    # Temporary debug lines
+    st.sidebar.write("Supabase URL:", SUPABASE_URL)
+    st.sidebar.write("Has Supabase key:", bool(SUPABASE_KEY))
 
     auth_mode = st.sidebar.radio("Choose", ["Sign In", "Sign Up"])
 
