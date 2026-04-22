@@ -26,8 +26,7 @@ def get_supabase() -> Optional[Client]:
 
     try:
         return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as e:
-        st.sidebar.error(f"Supabase client creation failed: {e}")
+    except Exception:
         return None
 
 
@@ -39,8 +38,8 @@ def sign_out_user() -> None:
     if supabase is not None:
         try:
             supabase.auth.sign_out()
-        except Exception as e:
-            st.sidebar.error(f"Sign out failed: {e}")
+        except Exception:
+            pass
 
 
 def get_current_user():
@@ -71,7 +70,6 @@ def render_auth_sidebar() -> None:
     """Render sign in / sign up controls in the sidebar."""
     st.sidebar.header("👤 Account")
 
-    # Optional debug info
     with st.sidebar.expander("Connection debug", expanded=False):
         st.write("Supabase URL:", SUPABASE_URL if SUPABASE_URL else "Not set")
         st.write("Has Supabase key:", bool(SUPABASE_KEY))
@@ -98,11 +96,7 @@ def render_auth_sidebar() -> None:
     if auth_mode == "Sign Up":
         signup_name = st.sidebar.text_input("Full name", key="signup_name")
         signup_email = st.sidebar.text_input("Email", key="signup_email")
-        signup_password = st.sidebar.text_input(
-            "Password",
-            type="password",
-            key="signup_password",
-        )
+        signup_password = st.sidebar.text_input("Password", type="password", key="signup_password")
 
         if st.sidebar.button("Create account"):
             if supabase is None:
@@ -131,11 +125,7 @@ def render_auth_sidebar() -> None:
 
     else:
         signin_email = st.sidebar.text_input("Email", key="signin_email")
-        signin_password = st.sidebar.text_input(
-            "Password",
-            type="password",
-            key="signin_password",
-        )
+        signin_password = st.sidebar.text_input("Password", type="password", key="signin_password")
 
         if st.sidebar.button("Sign in"):
             if supabase is None:
