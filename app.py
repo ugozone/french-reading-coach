@@ -58,15 +58,219 @@ from ui_helpers import (
     render_colored_feedback_with_ipa,
     render_pronunciation_focus,
 )
-ensure_all_seeded()
+
 MAX_PHRASE_ATTEMPTS = 10
+default_text = "Bonjour, comment allez-vous aujourd'hui ?"
 
 st.set_page_config(page_title="JamiSpeak French", page_icon="🇫🇷", layout="wide")
 
-st.title("🇫🇷 JamiSpeak French")
-st.write("Practice French pronunciation, grammar, and speaking confidence with AI-powered feedback.")
+st.markdown("""
+<style>
+:root {
+    --bg: #f4f7fb;
+    --surface-strong: #ffffff;
+    --text: #0f172a;
+    --muted: #5b6474;
+    --line: #e2e8f0;
+    --brand: #1d4ed8;
+    --brand-2: #7c3aed;
+    --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --radius: 18px;
+}
 
-default_text = "Bonjour, comment allez-vous aujourd'hui ?"
+.stApp {
+    background:
+        radial-gradient(circle at top left, rgba(29,78,216,0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(124,58,237,0.08), transparent 24%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    color: var(--text);
+}
+
+.block-container {
+    max-width: 1200px;
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+}
+
+h1, h2, h3, h4 {
+    color: var(--text);
+    letter-spacing: -0.02em;
+}
+
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    border-right: 1px solid rgba(255,255,255,0.06);
+}
+section[data-testid="stSidebar"] * {
+    color: #f8fafc !important;
+}
+
+.stTextInput input,
+.stTextArea textarea,
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div {
+    border-radius: 14px !important;
+    border: 1px solid #d7dfeb !important;
+    background: rgba(255,255,255,0.96) !important;
+}
+
+.stButton > button {
+    border: none !important;
+    border-radius: 14px !important;
+    padding: 0.72rem 1.1rem !important;
+    font-weight: 700 !important;
+    color: white !important;
+    background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%) !important;
+    box-shadow: 0 8px 20px rgba(29,78,216,0.22) !important;
+}
+
+.stButton > button:hover {
+    opacity: 0.96;
+    transform: translateY(-1px);
+}
+
+button[data-baseweb="tab"] {
+    border-radius: 14px 14px 0 0 !important;
+    font-weight: 700 !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: var(--brand) !important;
+}
+
+div[data-testid="metric-container"] {
+    background: var(--surface-strong);
+    border: 1px solid var(--line);
+    padding: 18px;
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+}
+
+div[data-testid="stDataFrame"] {
+    background: var(--surface-strong);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 0.35rem;
+    box-shadow: var(--shadow);
+}
+
+details {
+    background: var(--surface-strong);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+summary {
+    padding: 0.9rem 1rem !important;
+    font-weight: 700 !important;
+}
+
+.jami-hero {
+    background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 30%),
+        linear-gradient(100deg, #1d4ed8 0%, #7c3aed 100%);
+    color: white;
+    padding: 28px;
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(29,78,216,0.22);
+    margin-bottom: 1.2rem;
+}
+.jami-hero h1,
+.jami-hero p {
+    color: white !important;
+    margin: 0;
+}
+.jami-hero p {
+    margin-top: 8px;
+    opacity: 0.95;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.jami-card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 1rem;
+}
+
+.jami-card h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.jami-muted {
+    color: var(--muted) !important;
+}
+
+.jami-pill {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(29,78,216,0.08);
+    color: var(--brand);
+    margin-right: 6px;
+    margin-bottom: 6px;
+}
+
+@media (max-width: 900px) {
+    .block-container {
+        padding-top: 0.75rem;
+        padding-left: 0.9rem;
+        padding-right: 0.9rem;
+    }
+
+    .jami-hero {
+        padding: 20px;
+        border-radius: 18px;
+    }
+
+    .jami-card {
+        padding: 16px;
+        border-radius: 16px;
+    }
+
+    .stButton > button {
+        width: 100%;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="jami-hero">
+    <h1>🇫🇷 JamiSpeak French</h1>
+    <p>
+        A modern French learning platform for pronunciation, guided reading,
+        grammar mastery, and teacher-supported progress tracking.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+
+def section_header(title: str, subtitle: str = ""):
+    st.markdown(f"""
+    <div style="margin: 0.4rem 0 1rem 0;">
+        <h2 style="margin-bottom: 0.2rem;">{title}</h2>
+        <p class="jami-muted" style="margin-top: 0;">{subtitle}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def card(title: str, body: str):
+    st.markdown(f"""
+    <div class="jami-card">
+        <h3>{title}</h3>
+        <p class="jami-muted">{body}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
 
 if "reference_text" not in st.session_state:
     st.session_state.reference_text = default_text
@@ -91,12 +295,27 @@ if "active_guided_task_id" not in st.session_state:
 
 ensure_all_seeded()
 
-st.sidebar.header("Access")
+st.sidebar.markdown("""
+<div style="
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 14px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+">
+    <strong>JamiSpeak Portal</strong><br>
+    <span style="font-size: 13px; opacity: 0.9;">
+        Mobile-friendly French learning with pronunciation, reading, grammar, and teacher monitoring.
+    </span>
+</div>
+""", unsafe_allow_html=True)
 
+st.sidebar.header("Access")
 mode = st.sidebar.radio("Open app as:", ["Student", "Teacher"], key="access_mode")
 
 if mode == "Student":
     st.session_state.teacher_mode = False
+    st.session_state.teacher_name = ""
 
     if st.session_state.student_id is None:
         st.sidebar.subheader("Student profile")
@@ -105,7 +324,7 @@ if mode == "Student":
         phone = st.sidebar.text_input("Phone")
         level = st.sidebar.selectbox("Level", ["A1", "A2", "B1", "B2", "C1", "C2"])
         class_name = st.sidebar.text_input("Class name")
-        teacher_name = st.sidebar.text_input("Teacher name")
+        teacher_name_input = st.sidebar.text_input("Teacher name")
         notes = st.sidebar.text_area("Notes (optional)")
 
         if st.sidebar.button("Continue / Create profile"):
@@ -115,7 +334,7 @@ if mode == "Student":
                 phone=phone,
                 level=level,
                 class_name=class_name,
-                teacher_name=teacher_name,
+                teacher_name=teacher_name_input,
                 notes=notes,
             )
             if student:
@@ -180,9 +399,9 @@ else:
     st.stop()
 
 with tab1:
+    section_header("🎤 Pronunciation Practice", "Upload text, listen, record, and receive structured feedback.")
     current_lesson_id = None
     input_mode = st.radio("Choose text source:", ["My Text", "Teacher Texts"], key="input_mode")
-    st.subheader("Choose how to add French text")
 
     if input_mode == "My Text":
         uploaded_file = st.file_uploader(
@@ -266,7 +485,11 @@ with tab1:
 
     st.markdown("---")
     audio_value = st.audio_input("🎤 Record your pronunciation", key="main_audio_input")
-    uploaded_audio = st.file_uploader("Or upload audio (wav, mp3, m4a)", type=["wav", "mp3", "m4a"], key="uploaded_audio_fallback")
+    uploaded_audio = st.file_uploader(
+        "Or upload audio (wav, mp3, m4a)",
+        type=["wav", "mp3", "m4a"],
+        key="uploaded_audio_fallback",
+    )
 
     def process_audio_bytes(audio_source, analyze_key: str):
         if not reference_text.strip():
@@ -332,7 +555,7 @@ with tab1:
             process_audio_bytes(uploaded_audio, "results_uploaded")
 
 with tab2:
-    st.subheader("🎮 Grammar Game")
+    section_header("🎮 Grammar Game", "Build accuracy, earn XP, and strengthen your command of French.")
     grammar_level = st.selectbox("Choose grammar level:", ["A1", "A2", "B1", "B2"], key="grammar_level")
     grammar_lessons = get_grammar_lessons(grammar_level)
 
@@ -368,7 +591,6 @@ with tab2:
             st.markdown(f"#### Question {current_index + 1} of {len(grammar_questions)}")
             st.write(q["prompt"])
 
-            user_answer = ""
             if q["question_type"] == "multiple_choice":
                 user_answer = st.radio("Choose one:", q.get("options") or [], key=f"grammar_q_{q['id']}")
             else:
@@ -406,9 +628,9 @@ with tab2:
             st.success("🎉 Lesson complete!")
 
 with tab3:
-    st.subheader("📚 Guided Reading")
-
+    section_header("📚 Guided Reading", "Read in short sections, answer questions, and build confidence.")
     assignments = get_assignments_for_student(student_id)
+
     if assignments:
         st.markdown("### My Assigned Readings")
         for assignment in assignments:
@@ -522,11 +744,21 @@ with tab3:
                     st.rerun()
 
 with tab4:
-    st.subheader("📊 My Progress")
-
+    section_header("📊 My Progress", "Track your attempts, phrase practice, and overall development.")
     current_student = get_student(student_id)
+
     if current_student:
-        st.write(f"**Student:** {current_student.get('full_name', '')}")
+        st.markdown(f"""
+        <div class="jami-card">
+            <h3>Progress Dashboard</h3>
+            <p class="jami-muted">
+                Student: <strong>{current_student.get('full_name', '')}</strong><br>
+                Email: {current_student.get('email', '—') or '—'}<br>
+                Class: {current_student.get('class_name', '—') or '—'}<br>
+                Teacher: {current_student.get('teacher_name', '—') or '—'}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
     progress_rows = get_progress_rows(student_id)
 
@@ -539,17 +771,25 @@ with tab4:
         c1.metric("Lessons Practiced", len(progress_rows))
         c2.metric("Total Attempts", total_attempts)
         c3.metric("Best Score", f"{overall_best:.1f}")
-        st.write(f"**Average across lessons:** {overall_avg:.1f}")
+
+        st.markdown(f"""
+        <div class="jami-card">
+            <h3>Performance Summary</h3>
+            <p class="jami-muted">
+                Your average score across lessons is <strong>{overall_avg:.1f}</strong>.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.info("No saved progress yet.")
+        card("No progress yet", "Complete a lesson or recording activity to begin tracking your learning journey.")
 
     st.markdown("---")
-    st.subheader("📈 Pronunciation History")
+    section_header("📈 Pronunciation History", "Your most recent pronunciation attempts.")
 
     attempt_history = get_attempt_history(student_id, limit=10)
     if attempt_history:
         avg_score = sum(float(a["score"]) for a in attempt_history) / len(attempt_history)
-        st.metric("Average Score", f"{avg_score:.1f}")
+        st.metric("Average Pronunciation Score", f"{avg_score:.1f}")
 
         for i, attempt in enumerate(attempt_history, start=1):
             when = attempt.get("created_at", "")
@@ -560,9 +800,11 @@ with tab4:
                 feedback_data = attempt.get("feedback", [])
                 if feedback_data:
                     st.markdown(render_colored_feedback_with_ipa(feedback_data), unsafe_allow_html=True)
+    else:
+        card("No pronunciation attempts yet", "Record and analyze a reading to start building your pronunciation history.")
 
     st.markdown("---")
-    st.subheader("🎯 Phrase History")
+    section_header("🎯 Phrase History", "Focused practice on short phrases and connected speech.")
 
     phrase_history = get_phrase_history(student_id, limit=10)
     if phrase_history:
@@ -574,26 +816,33 @@ with tab4:
                 feedback_data = item.get("feedback", [])
                 if feedback_data:
                     st.markdown(render_colored_feedback_with_ipa(feedback_data), unsafe_allow_html=True)
+    else:
+        card("No phrase attempts yet", "Practice highlighted phrases to build targeted phrase-level feedback history.")
 
 if teacher_mode and teacher_name:
     with tab5:
-        st.subheader("👩‍🏫 Teacher Dashboard")
-        st.success(f"Teacher access granted: {teacher_name}")
-        if teacher_mode and teacher_name:
-    with tab5:
-        st.subheader("👩‍🏫 Teacher Dashboard")
-        st.success(f"Teacher access granted: {teacher_name}")
+        section_header("👩‍🏫 Teacher Dashboard", "Assign tasks, monitor learners, and review performance with clarity.")
 
-        st.write("Teacher mode:", teacher_mode)
-        st.write("Teacher name:", teacher_name)
-        st.write("Students count:", len(get_all_students()))
-        st.write("Tasks count:", len(get_guided_reading_tasks()))
-        st.write("Assignments count:", len(get_all_assignments_overview()))
+        st.markdown(f"""
+        <div class="jami-card">
+            <h3>Teacher Access</h3>
+            <p class="jami-muted">
+                You are logged in as <strong>{teacher_name}</strong>.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
         students = get_all_students()
         tasks = get_guided_reading_tasks()
 
-        st.markdown("### Assign a Reading Task")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Students", len(students))
+        c2.metric("Reading Tasks", len(tasks))
+        c3.metric("Assignments", len(get_all_assignments_overview()))
+
+        st.markdown("---")
+        section_header("📌 Assign a Reading Task", "Select a student, choose a task, and attach notes or a due date.")
+
         if students and tasks:
             student_map = {
                 f"{s.get('full_name', '')} | {s.get('email', '') or 'no email'} | {s.get('class_name', '') or 'no class'}": s
@@ -620,7 +869,8 @@ if teacher_mode and teacher_name:
                     st.error(msg)
 
         st.markdown("---")
-        st.markdown("### Assignment Overview")
+        section_header("📚 Assignment Overview", "A structured view of assigned readings, due dates, and completion status.")
+
         assignments = get_all_assignments_overview()
         if assignments:
             rows = []
@@ -641,10 +891,11 @@ if teacher_mode and teacher_name:
                 )
             st.dataframe(rows, use_container_width=True)
         else:
-            st.info("No assignments yet.")
+            card("No assignments yet", "Assignments will appear here once a reading task has been assigned to a student.")
 
         st.markdown("---")
-        st.markdown("### Guided Reading Performance")
+        section_header("📊 Guided Reading Performance", "Monitor pronunciation, comprehension, and total reading performance.")
+
         attempts = get_guided_reading_attempt_overview()
 
         if attempts:
@@ -696,3 +947,5 @@ if teacher_mode and teacher_name:
                             st.write(f"**Vocabulary answer:** {section_row.get('vocab_response', '')}")
                             st.write(f"**Expected vocabulary:** {section_info.get('vocab_answer', '')}")
                             st.write(f"**Coaching message:** {section_row.get('coaching_message', '')}")
+        else:
+            card("No guided reading attempts yet", "Student performance data will appear here once guided reading activities are completed.")
