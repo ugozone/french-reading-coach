@@ -60,84 +60,89 @@ from ui_helpers import (
 )
 
 MAX_PHRASE_ATTEMPTS = 10
-default_text = "Bonjour, comment allez-vous aujourd'hui ?"
+DEFAULT_TEXT = "Bonjour, comment allez-vous aujourd'hui ?"
 
 st.set_page_config(page_title="JamiSpeak French", page_icon="🇫🇷", layout="wide")
 
 st.markdown("""
 <style>
 :root {
-    --bg: #f4f7fb;
+    --bg: #f7f2ea;
+    --surface: #fffaf3;
     --surface-strong: #ffffff;
-    --text: #0f172a;
-    --muted: #5b6474;
-    --line: #e2e8f0;
-    --brand: #1d4ed8;
-    --brand-2: #7c3aed;
-    --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --text: #2b1d14;
+    --muted: #6b5748;
+    --line: #e7d8c7;
+    --brand: #8b5e34;
+    --brand-2: #d4a017;
+    --shadow: 0 10px 28px rgba(60, 35, 15, 0.10);
     --radius: 18px;
 }
-
 .stApp {
     background:
-        radial-gradient(circle at top left, rgba(29,78,216,0.08), transparent 28%),
-        radial-gradient(circle at top right, rgba(124,58,237,0.08), transparent 24%),
-        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+        radial-gradient(circle at top left, rgba(212,160,23,0.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(139,94,52,0.10), transparent 26%),
+        linear-gradient(180deg, #fffaf5 0%, var(--bg) 100%);
     color: var(--text);
 }
-
 .block-container {
     max-width: 1200px;
     padding-top: 1rem;
     padding-bottom: 2rem;
 }
-
-h1, h2, h3, h4 {
-    color: var(--text);
-    letter-spacing: -0.02em;
-}
-
+h1, h2, h3, h4 { color: var(--text); letter-spacing: -0.02em; }
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
-    border-right: 1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(180deg, #2f1e12 0%, #3d2818 100%);
+    border-right: 1px solid rgba(212,160,23,0.18);
 }
-section[data-testid="stSidebar"] * {
-    color: #f8fafc !important;
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] div {
+    color: #f7e7ce !important;
 }
-
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea {
+    color: #2b1d14 !important;
+    -webkit-text-fill-color: #2b1d14 !important;
+    caret-color: #8b5e34 !important;
+    background: #fffaf3 !important;
+    border: 1px solid #d7c2a8 !important;
+    border-radius: 14px !important;
+}
+section[data-testid="stSidebar"] input::placeholder,
+section[data-testid="stSidebar"] textarea::placeholder {
+    color: #8a7666 !important;
+    opacity: 1 !important;
+}
+section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+    background: #fffaf3 !important;
+    border: 1px solid #d7c2a8 !important;
+    border-radius: 14px !important;
+    color: #2b1d14 !important;
+}
 .stTextInput input,
 .stTextArea textarea,
 div[data-baseweb="select"] > div,
 div[data-baseweb="input"] > div {
     border-radius: 14px !important;
-    border: 1px solid #d7dfeb !important;
-    background: rgba(255,255,255,0.96) !important;
+    border: 1px solid #dcc8b2 !important;
+    background: rgba(255,250,243,0.96) !important;
+    color: #2b1d14 !important;
+    -webkit-text-fill-color: #2b1d14 !important;
 }
-
 .stButton > button {
     border: none !important;
     border-radius: 14px !important;
     padding: 0.72rem 1.1rem !important;
     font-weight: 700 !important;
     color: white !important;
-    background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%) !important;
-    box-shadow: 0 8px 20px rgba(29,78,216,0.22) !important;
+    background: linear-gradient(90deg, #8b5e34 0%, #d4a017 100%) !important;
+    box-shadow: 0 8px 20px rgba(139,94,52,0.22) !important;
 }
-
-.stButton > button:hover {
-    opacity: 0.96;
-    transform: translateY(-1px);
-}
-
-button[data-baseweb="tab"] {
-    border-radius: 14px 14px 0 0 !important;
-    font-weight: 700 !important;
-}
-
-button[data-baseweb="tab"][aria-selected="true"] {
-    color: var(--brand) !important;
-}
-
+.stButton > button:hover { opacity: 0.96; transform: translateY(-1px); }
+button[data-baseweb="tab"] { border-radius: 14px 14px 0 0 !important; font-weight: 700 !important; }
+button[data-baseweb="tab"][aria-selected="true"] { color: #8b5e34 !important; }
 div[data-testid="metric-container"] {
     background: var(--surface-strong);
     border: 1px solid var(--line);
@@ -145,7 +150,6 @@ div[data-testid="metric-container"] {
     border-radius: 18px;
     box-shadow: var(--shadow);
 }
-
 div[data-testid="stDataFrame"] {
     background: var(--surface-strong);
     border: 1px solid var(--line);
@@ -153,7 +157,6 @@ div[data-testid="stDataFrame"] {
     padding: 0.35rem;
     box-shadow: var(--shadow);
 }
-
 details {
     background: var(--surface-strong);
     border: 1px solid var(--line);
@@ -161,84 +164,45 @@ details {
     box-shadow: var(--shadow);
     overflow: hidden;
 }
-
-summary {
-    padding: 0.9rem 1rem !important;
-    font-weight: 700 !important;
-}
-
+summary { padding: 0.9rem 1rem !important; font-weight: 700 !important; }
 .jami-hero {
     background:
-        radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 30%),
-        linear-gradient(100deg, #1d4ed8 0%, #7c3aed 100%);
+        radial-gradient(circle at top right, rgba(255,240,210,0.22), transparent 30%),
+        linear-gradient(100deg, #6f4a2a 0%, #d4a017 100%);
     color: white;
     padding: 28px;
     border-radius: 24px;
-    box-shadow: 0 16px 40px rgba(29,78,216,0.22);
+    box-shadow: 0 16px 40px rgba(111,74,42,0.22);
     margin-bottom: 1.2rem;
 }
-.jami-hero h1,
-.jami-hero p {
-    color: white !important;
-    margin: 0;
-}
-.jami-hero p {
-    margin-top: 8px;
-    opacity: 0.95;
-    font-size: 1rem;
-    line-height: 1.6;
-}
-
+.jami-hero h1, .jami-hero p { color: white !important; margin: 0; }
+.jami-hero p { margin-top: 8px; opacity: 0.96; font-size: 1rem; line-height: 1.6; }
 .jami-card {
-    background: #ffffff;
+    background: #fffdf9;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     padding: 20px;
     margin-bottom: 1rem;
 }
-
-.jami-card h3 {
-    margin-top: 0;
-    margin-bottom: 8px;
-}
-
-.jami-muted {
-    color: var(--muted) !important;
-}
-
+.jami-card h3 { margin-top: 0; margin-bottom: 8px; }
+.jami-muted { color: var(--muted) !important; }
 .jami-pill {
     display: inline-block;
     padding: 6px 10px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: 700;
-    background: rgba(29,78,216,0.08);
-    color: var(--brand);
+    background: rgba(212,160,23,0.12);
+    color: #8b5e34;
     margin-right: 6px;
     margin-bottom: 6px;
 }
-
 @media (max-width: 900px) {
-    .block-container {
-        padding-top: 0.75rem;
-        padding-left: 0.9rem;
-        padding-right: 0.9rem;
-    }
-
-    .jami-hero {
-        padding: 20px;
-        border-radius: 18px;
-    }
-
-    .jami-card {
-        padding: 16px;
-        border-radius: 16px;
-    }
-
-    .stButton > button {
-        width: 100%;
-    }
+    .block-container { padding-top: 0.75rem; padding-left: 0.9rem; padding-right: 0.9rem; }
+    .jami-hero { padding: 20px; border-radius: 18px; }
+    .jami-card { padding: 16px; border-radius: 16px; }
+    .stButton > button { width: 100%; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -254,26 +218,32 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-def section_header(title: str, subtitle: str = ""):
-    st.markdown(f"""
-    <div style="margin: 0.4rem 0 1rem 0;">
-        <h2 style="margin-bottom: 0.2rem;">{title}</h2>
-        <p class="jami-muted" style="margin-top: 0;">{subtitle}</p>
-    </div>
-    """, unsafe_allow_html=True)
+def section_header(title: str, subtitle: str = "") -> None:
+    st.markdown(
+        f'''
+        <div style="margin: 0.4rem 0 1rem 0;">
+            <h2 style="margin-bottom: 0.2rem;">{title}</h2>
+            <p class="jami-muted" style="margin-top: 0;">{subtitle}</p>
+        </div>
+        ''',
+        unsafe_allow_html=True,
+    )
 
 
-def card(title: str, body: str):
-    st.markdown(f"""
-    <div class="jami-card">
-        <h3>{title}</h3>
-        <p class="jami-muted">{body}</p>
-    </div>
-    """, unsafe_allow_html=True)
+def card(title: str, body: str) -> None:
+    st.markdown(
+        f'''
+        <div class="jami-card">
+            <h3>{title}</h3>
+            <p class="jami-muted">{body}</p>
+        </div>
+        ''',
+        unsafe_allow_html=True,
+    )
 
 
 if "reference_text" not in st.session_state:
-    st.session_state.reference_text = default_text
+    st.session_state.reference_text = DEFAULT_TEXT
 if "student_id" not in st.session_state:
     st.session_state.student_id = None
 if "teacher_mode" not in st.session_state:
@@ -297,15 +267,15 @@ ensure_all_seeded()
 
 st.sidebar.markdown("""
 <div style="
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255, 233, 190, 0.10);
+    border: 1px solid rgba(212,160,23,0.20);
     padding: 14px;
     border-radius: 14px;
     margin-bottom: 12px;
 ">
-    <strong>JamiSpeak Portal</strong><br>
-    <span style="font-size: 13px; opacity: 0.9;">
-        Mobile-friendly French learning with pronunciation, reading, grammar, and teacher monitoring.
+    <strong style="color:#f7e7ce;">JamiSpeak Portal</strong><br>
+    <span style="font-size: 13px; color:#f3dcc0;">
+        Elegant French learning with pronunciation, guided reading, grammar, and teacher monitoring.
     </span>
 </div>
 """, unsafe_allow_html=True)
@@ -328,21 +298,24 @@ if mode == "Student":
         notes = st.sidebar.text_area("Notes (optional)")
 
         if st.sidebar.button("Continue / Create profile"):
-            student, msg = create_or_get_student(
-                full_name=full_name,
-                email=email,
-                phone=phone,
-                level=level,
-                class_name=class_name,
-                teacher_name=teacher_name_input,
-                notes=notes,
-            )
-            if student:
-                st.session_state.student_id = student["id"]
-                st.sidebar.success(msg)
-                st.rerun()
+            if not full_name.strip():
+                st.sidebar.error("Full name is required.")
             else:
-                st.sidebar.error(msg)
+                student, msg = create_or_get_student(
+                    full_name=full_name,
+                    email=email,
+                    phone=phone,
+                    level=level,
+                    class_name=class_name,
+                    teacher_name=teacher_name_input,
+                    notes=notes,
+                )
+                if student:
+                    st.session_state.student_id = student["id"]
+                    st.sidebar.success(msg)
+                    st.rerun()
+                else:
+                    st.sidebar.error(msg)
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("Find existing profile")
@@ -370,7 +343,6 @@ if mode == "Student":
         else:
             st.session_state.student_id = None
             st.rerun()
-
 else:
     st.session_state.teacher_mode = True
     teacher_name_input = st.sidebar.text_input("Teacher name")
@@ -491,7 +463,7 @@ with tab1:
         key="uploaded_audio_fallback",
     )
 
-    def process_audio_bytes(audio_source, analyze_key: str):
+    def process_audio_bytes(audio_source, analyze_key: str) -> None:
         if not reference_text.strip():
             st.error("Please type, paste, upload, or select a French text first.")
             return
@@ -748,17 +720,20 @@ with tab4:
     current_student = get_student(student_id)
 
     if current_student:
-        st.markdown(f"""
-        <div class="jami-card">
-            <h3>Progress Dashboard</h3>
-            <p class="jami-muted">
-                Student: <strong>{current_student.get('full_name', '')}</strong><br>
-                Email: {current_student.get('email', '—') or '—'}<br>
-                Class: {current_student.get('class_name', '—') or '—'}<br>
-                Teacher: {current_student.get('teacher_name', '—') or '—'}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f'''
+            <div class="jami-card">
+                <h3>Progress Dashboard</h3>
+                <p class="jami-muted">
+                    Student: <strong>{current_student.get('full_name', '')}</strong><br>
+                    Email: {current_student.get('email', '—') or '—'}<br>
+                    Class: {current_student.get('class_name', '—') or '—'}<br>
+                    Teacher: {current_student.get('teacher_name', '—') or '—'}
+                </p>
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
 
     progress_rows = get_progress_rows(student_id)
 
@@ -772,14 +747,17 @@ with tab4:
         c2.metric("Total Attempts", total_attempts)
         c3.metric("Best Score", f"{overall_best:.1f}")
 
-        st.markdown(f"""
-        <div class="jami-card">
-            <h3>Performance Summary</h3>
-            <p class="jami-muted">
-                Your average score across lessons is <strong>{overall_avg:.1f}</strong>.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f'''
+            <div class="jami-card">
+                <h3>Performance Summary</h3>
+                <p class="jami-muted">
+                    Your average score across lessons is <strong>{overall_avg:.1f}</strong>.
+                </p>
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
     else:
         card("No progress yet", "Complete a lesson or recording activity to begin tracking your learning journey.")
 
@@ -823,14 +801,17 @@ if teacher_mode and teacher_name:
     with tab5:
         section_header("👩‍🏫 Teacher Dashboard", "Assign tasks, monitor learners, and review performance with clarity.")
 
-        st.markdown(f"""
-        <div class="jami-card">
-            <h3>Teacher Access</h3>
-            <p class="jami-muted">
-                You are logged in as <strong>{teacher_name}</strong>.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f'''
+            <div class="jami-card">
+                <h3>Teacher Access</h3>
+                <p class="jami-muted">
+                    You are logged in as <strong>{teacher_name}</strong>.
+                </p>
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
 
         students = get_all_students()
         tasks = get_guided_reading_tasks()
@@ -897,7 +878,6 @@ if teacher_mode and teacher_name:
         section_header("📊 Guided Reading Performance", "Monitor pronunciation, comprehension, and total reading performance.")
 
         attempts = get_guided_reading_attempt_overview()
-
         if attempts:
             summary_rows = []
             for attempt in attempts:
