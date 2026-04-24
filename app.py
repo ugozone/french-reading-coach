@@ -1,3 +1,4 @@
+import os
 import tempfile
 from datetime import datetime
 
@@ -245,6 +246,41 @@ def card(title: str, body: str) -> None:
     )
 
 
+def play_tts_audio_safe(text: str, lang: str = "fr", key_prefix: str = "tts") -> None:
+    if not text or not text.strip():
+        st.error("No text available for audio.")
+        return
+
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_mp3:
+            temp_path = tmp_mp3.name
+
+        tts = gTTS(text=text, lang=lang)
+        tts.save(temp_path)
+
+        with open(temp_path, "rb") as audio_file:
+            audio_bytes = audio_file.read()
+
+        st.audio(audio_bytes, format="audio/mpeg")
+        st.download_button(
+            "Download audio",
+            data=audio_bytes,
+            file_name=f"{key_prefix}.mp3",
+            mime="audio/mpeg",
+            key=f"{key_prefix}_download",
+        )
+
+    except Exception as e:
+        st.error(f"Could not generate audio: {e}")
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+
 if "reference_text" not in st.session_state:
     st.session_state.reference_text = DEFAULT_TEXT
 if "student_id" not in st.session_state:
@@ -451,15 +487,12 @@ with tab1:
         if not reference_text.strip():
             st.error("Please type, paste, upload, or select a French text first.")
         else:
-            try:
-                tts = gTTS(reference_text, lang="fr")
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_mp3:
-                    tts.save(tmp_mp3.name)
-                    with open(tmp_mp3.name, "rb") as f:
-                        audio_bytes = f.read()
-                st.audio(audio_bytes, format="audio/mp3")
-            except Exception as e:
-                st.error(f"Could not generate audio: {e}")
+            play_tts_audio_safe(
+                text=reference_text,
+                lang="fr",
+                key_prefix="main_pronunciation",
+            )
+            st.caption("On iPhone, if audio does not autoplay, tap play or use the download button.")
 
     st.markdown("---")
     audio_value = st.audio_input("🎤 Record your pronunciation", key="main_audio_input")
@@ -677,15 +710,12 @@ with tab3:
                 st.write(current_section["section_text"])
 
                 if st.button("🔊 Listen to this section", key=f"listen_section_{current_section['id']}"):
-                    try:
-                        tts = gTTS(current_section["section_text"], lang="fr")
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_mp3:
-                            tts.save(tmp_mp3.name)
-                            with open(tmp_mp3.name, "rb") as f:
-                                audio_bytes = f.read()
-                        st.audio(audio_bytes, format="audio/mp3")
-                    except Exception as e:
-                        st.error(f"Could not generate section audio: {e}")
+                    play_tts_audio_safe(
+                        text=current_section["section_text"],
+                        lang="fr",
+                        key_prefix=f"guided_section_{current_section['id']}",
+                    )
+                    st.caption("If iPhone playback is blocked, use the download button below the audio player.")
 
                 section_audio = st.audio_input("🎤 Read this section aloud", key=f"guided_audio_{current_section['id']}")
                 comprehension_response = st.text_input(current_section["comprehension_question"], key=f"guided_comp_{current_section['id']}")
