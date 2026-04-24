@@ -39,6 +39,9 @@ from db import (
     get_all_assignments_overview,
     mark_assignment_started,
     mark_assignment_completed,
+    create_guided_task,
+    create_guided_task_from_teacher_text,
+    upload_teacher_audio,
 )
 from speech import (
     extract_text_from_pdf,
@@ -220,24 +223,24 @@ st.markdown("""
 
 def section_header(title: str, subtitle: str = "") -> None:
     st.markdown(
-        f'''
+        f"""
         <div style="margin: 0.4rem 0 1rem 0;">
             <h2 style="margin-bottom: 0.2rem;">{title}</h2>
             <p class="jami-muted" style="margin-top: 0;">{subtitle}</p>
         </div>
-        ''',
+        """,
         unsafe_allow_html=True,
     )
 
 
 def card(title: str, body: str) -> None:
     st.markdown(
-        f'''
+        f"""
         <div class="jami-card">
             <h3>{title}</h3>
             <p class="jami-muted">{body}</p>
         </div>
-        ''',
+        """,
         unsafe_allow_html=True,
     )
 
@@ -262,6 +265,8 @@ if "guided_section_index" not in st.session_state:
     st.session_state.guided_section_index = 0
 if "active_guided_task_id" not in st.session_state:
     st.session_state.active_guided_task_id = None
+if "latest_created_task_id" not in st.session_state:
+    st.session_state.latest_created_task_id = None
 
 ensure_all_seeded()
 
@@ -369,6 +374,7 @@ elif student_id:
 else:
     st.info("Please create or load a student profile from the sidebar, or open teacher mode.")
     st.stop()
+
 
 with tab1:
     section_header("🎤 Pronunciation Practice", "Upload text, listen, record, and receive structured feedback.")
@@ -526,6 +532,7 @@ with tab1:
         if st.button("📊 Analyze uploaded audio", key="analyze_uploaded_audio"):
             process_audio_bytes(uploaded_audio, "results_uploaded")
 
+
 with tab2:
     section_header("🎮 Grammar Game", "Build accuracy, earn XP, and strengthen your command of French.")
     grammar_level = st.selectbox("Choose grammar level:", ["A1", "A2", "B1", "B2"], key="grammar_level")
@@ -599,6 +606,7 @@ with tab2:
         elif grammar_questions:
             st.success("🎉 Lesson complete!")
 
+
 with tab3:
     section_header("📚 Guided Reading", "Read in short sections, answer questions, and build confidence.")
     assignments = get_assignments_for_student(student_id)
@@ -612,6 +620,10 @@ with tab3:
                 st.write(f"**Due date:** {assignment.get('due_date', '') or 'No due date'}")
                 if assignment.get("notes"):
                     st.write(f"**Notes:** {assignment.get('notes')}")
+                if task_info.get("instructions"):
+                    st.write(f"**Instructions:** {task_info.get('instructions')}")
+                if task_info.get("audio_url"):
+                    st.audio(task_info["audio_url"])
 
     guided_level = st.selectbox("Choose reading level:", ["A1", "A2", "B1", "B2"], key="guided_level")
     tasks = get_guided_reading_tasks(guided_level)
@@ -639,6 +651,10 @@ with tab3:
 
         st.markdown(f"### {selected_task['title']}")
         st.write(selected_task["full_text"])
+        if selected_task.get("audio_url"):
+            st.audio(selected_task["audio_url"])
+        if selected_task.get("instructions"):
+            st.info(selected_task["instructions"])
 
         if latest_status and latest_status.get("status") == "completed":
             c1, c2, c3 = st.columns(3)
@@ -714,6 +730,7 @@ with tab3:
                 if st.button("➡ Next section", key=f"next_guided_{current_section['id']}"):
                     st.session_state.guided_section_index = current_index + 1
                     st.rerun()
+
 
 with tab4:
     section_header("📊 My Progress", "Track your attempts, phrase practice, and overall development.")
@@ -822,32 +839,173 @@ if teacher_mode and teacher_name:
         c3.metric("Assignments", len(get_all_assignments_overview()))
 
         st.markdown("---")
-        section_header("📌 Assign a Reading Task", "Select a student, choose a task, and attach notes or a due date.")
+        section_header(
+            "📌 Assign a Reading Task",
+            "Choose an existing task, create one from teacher texts, or upload/paste a custom reading text with optional audio."
+        )
 
-        if students and tasks:
+        if students:
             student_map = {
                 f"{s.get('full_name', '')} | {s.get('email', '') or 'no email'} | {s.get('class_name', '') or 'no class'}": s
                 for s in students
             }
-            task_map = {t["title"]: t for t in tasks}
 
-            selected_student_label = st.selectbox("Choose student", list(student_map.keys()), key="assign_student")
-            selected_task_label = st.selectbox("Choose task", list(task_map.keys()), key="assign_task")
+            selected_student_label = st.selectbox(
+                "Choose student",
+                list(student_map.keys()),
+                key="assign_student_main",
+            )
+            selected_student_id = student_map[selected_student_label]["id"]
+
+            assignment_mode = st.radio(
+                "Task source",
+                ["Existing Guided Task", "Teacher Text", "Custom Upload / Paste"],
+                key="assignment_mode",
+                horizontal=True,
+            )
+
             due_date = st.date_input("Due date", key="assign_due_date")
             notes = st.text_area("Assignment notes", key="assign_notes")
 
-            if st.button("Assign task", key="assign_task_btn"):
-                ok, msg = assign_reading_task(
-                    teacher_name=teacher_name,
-                    student_id=student_map[selected_student_label]["id"],
-                    task_id=task_map[selected_task_label]["id"],
-                    due_date=str(due_date) if due_date else None,
-                    notes=notes,
-                )
-                if ok:
-                    st.success(msg)
+            final_task_id = None
+
+            if assignment_mode == "Existing Guided Task":
+                if tasks:
+                    task_map = {t["title"]: t for t in tasks}
+                    selected_task_label = st.selectbox(
+                        "Choose existing task",
+                        list(task_map.keys()),
+                        key="assign_existing_task",
+                    )
+                    final_task_id = task_map[selected_task_label]["id"]
                 else:
-                    st.error(msg)
+                    st.info("No existing guided tasks found.")
+
+            elif assignment_mode == "Teacher Text":
+                teacher_level_for_task = st.selectbox(
+                    "Choose CEFR level for teacher text",
+                    ["A1", "A2", "B1", "B2", "C1", "C2"],
+                    key="teacher_text_level_for_task",
+                )
+
+                filtered_teacher_texts = [t for t in TEACHER_TEXTS if t["level"] == teacher_level_for_task]
+                teacher_text_map = {make_lesson_label(t): t for t in filtered_teacher_texts}
+
+                if teacher_text_map:
+                    selected_teacher_text_label = st.selectbox(
+                        "Choose teacher text",
+                        list(teacher_text_map.keys()),
+                        key="assign_teacher_text",
+                    )
+                    selected_teacher_text = teacher_text_map[selected_teacher_text_label]
+
+                    render_lesson_card(selected_teacher_text)
+
+                    teacher_audio_file = st.file_uploader(
+                        "Optional audio for this task",
+                        type=["mp3", "wav", "m4a"],
+                        key="teacher_text_audio_upload",
+                    )
+
+                    if st.button("Create task from teacher text", key="create_task_from_teacher_text_btn"):
+                        audio_url = upload_teacher_audio(teacher_audio_file, teacher_name) if teacher_audio_file else None
+                        new_task, msg = create_guided_task_from_teacher_text(
+                            text_data=selected_teacher_text,
+                            teacher_name=teacher_name,
+                            audio_url=audio_url,
+                        )
+                        if new_task:
+                            st.success(msg)
+                            st.session_state.latest_created_task_id = new_task["id"]
+                        else:
+                            st.error(msg)
+
+                    if st.session_state.latest_created_task_id:
+                        final_task_id = st.session_state.latest_created_task_id
+                else:
+                    st.info("No teacher texts found for that level.")
+
+            elif assignment_mode == "Custom Upload / Paste":
+                custom_title = st.text_input("Task title", key="custom_task_title")
+                custom_level = st.selectbox("Task level", ["A1", "A2", "B1", "B2", "C1", "C2"], key="custom_task_level")
+                custom_theme = st.text_input("Theme", key="custom_task_theme")
+                custom_instructions = st.text_area("Teacher instructions", key="custom_task_instructions")
+
+                custom_text_file = st.file_uploader(
+                    "Upload text file (pdf, docx, txt)",
+                    type=["pdf", "docx", "txt"],
+                    key="custom_task_text_upload",
+                )
+
+                uploaded_custom_text = ""
+                if custom_text_file is not None:
+                    file_name = custom_text_file.name.lower()
+                    try:
+                        if file_name.endswith(".pdf"):
+                            uploaded_custom_text = extract_text_from_pdf(custom_text_file)
+                        elif file_name.endswith(".docx"):
+                            uploaded_custom_text = extract_text_from_docx(custom_text_file)
+                        elif file_name.endswith(".txt"):
+                            uploaded_custom_text = extract_text_from_txt(custom_text_file)
+                    except Exception as e:
+                        st.error(f"Could not extract text: {e}")
+
+                custom_text = st.text_area(
+                    "Paste or edit the task text",
+                    value=uploaded_custom_text,
+                    height=220,
+                    key="custom_task_text_area",
+                )
+
+                custom_audio_file = st.file_uploader(
+                    "Optional audio file",
+                    type=["mp3", "wav", "m4a"],
+                    key="custom_task_audio_upload",
+                )
+
+                if st.button("Create custom task", key="create_custom_task_btn"):
+                    if not custom_title.strip():
+                        st.error("Task title is required.")
+                    elif not custom_text.strip():
+                        st.error("Task text is required.")
+                    else:
+                        audio_url = upload_teacher_audio(custom_audio_file, teacher_name) if custom_audio_file else None
+                        new_task, msg = create_guided_task(
+                            title=custom_title,
+                            cefr_level=custom_level,
+                            theme=custom_theme,
+                            full_text=custom_text,
+                            teacher_name=teacher_name,
+                            source_type="custom",
+                            audio_url=audio_url,
+                            instructions=custom_instructions,
+                        )
+                        if new_task:
+                            st.success(msg)
+                            st.session_state.latest_created_task_id = new_task["id"]
+                        else:
+                            st.error(msg)
+
+                if st.session_state.latest_created_task_id:
+                    final_task_id = st.session_state.latest_created_task_id
+
+            if st.button("Assign selected task to student", key="assign_final_task_btn"):
+                if not final_task_id:
+                    st.error("Please choose or create a task first.")
+                else:
+                    ok, msg = assign_reading_task(
+                        teacher_name=teacher_name,
+                        student_id=selected_student_id,
+                        task_id=final_task_id,
+                        due_date=str(due_date) if due_date else None,
+                        notes=notes,
+                    )
+                    if ok:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
+        else:
+            st.info("No students found yet.")
 
         st.markdown("---")
         section_header("📚 Assignment Overview", "A structured view of assigned readings, due dates, and completion status.")
@@ -866,6 +1024,7 @@ if teacher_mode and teacher_name:
                         "Assigned Teacher": assignment.get("teacher_name", ""),
                         "Task": task_info.get("title", ""),
                         "Level": task_info.get("cefr_level", ""),
+                        "Source": task_info.get("source_type", ""),
                         "Status": assignment.get("status", ""),
                         "Due Date": assignment.get("due_date", ""),
                     }
