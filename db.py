@@ -972,14 +972,50 @@ def get_guided_reading_attempt_details(attempt_id: str):
 
 
 def is_teacher_name(name: str) -> bool:
+    """
+    Old name-based teacher authorization.
+    Kept so the app does not break if another part still calls is_teacher_name().
+    """
     if supabase is None or not name:
         return False
+
     try:
-        result = supabase.table("teacher_access").select("teacher_name, is_active").eq("teacher_name", name.strip()).eq("is_active", True).limit(1).execute()
+        result = (
+            supabase.table("teacher_access")
+            .select("teacher_name, is_active")
+            .eq("teacher_name", name.strip())
+            .eq("is_active", True)
+            .limit(1)
+            .execute()
+        )
         return bool(result.data)
     except Exception:
         return False
 
+
+def is_teacher_email(email: str) -> bool:
+    """
+    New email-based teacher authorization.
+    Checks teacher_access.teacher_email.
+    """
+    if supabase is None or not email:
+        return False
+
+    try:
+        email_clean = email.strip().lower()
+
+        result = (
+            supabase.table("teacher_access")
+            .select("teacher_email, is_active")
+            .eq("teacher_email", email_clean)
+            .eq("is_active", True)
+            .limit(1)
+            .execute()
+        )
+
+        return bool(result.data)
+    except Exception:
+        return False
 
 def assign_reading_task(teacher_name: str, student_id: str, task_id: str, due_date: str | None = None, notes: str = ""):
     if supabase is None:
