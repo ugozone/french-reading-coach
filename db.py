@@ -996,14 +996,27 @@ def is_teacher_name(name: str) -> bool:
 def is_teacher_email(email: str) -> bool:
     """
     Email-based teacher authorization.
-    Checks teacher_access.email and confirms is_active is True.
+    First checks trusted teacher emails directly.
+    Then checks teacher_access.email in Supabase.
     """
-    if supabase is None or not email:
+    if not email:
+        return False
+
+    email_clean = email.strip().lower()
+
+    # Directly authorized teacher/admin emails
+    authorized_emails = [
+        "jamikeugo@gmail.com",
+    ]
+
+    if email_clean in authorized_emails:
+        return True
+
+    # Optional Supabase check
+    if supabase is None:
         return False
 
     try:
-        email_clean = email.strip().lower()
-
         result = (
             supabase.table("teacher_access")
             .select("email, is_active")
