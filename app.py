@@ -4,7 +4,7 @@ from datetime import datetime
 
 import streamlit as st
 from gtts import gTTS
-
+from auth import get_current_user
 from teacher_texts import TEACHER_TEXTS
 from db import (
     ensure_all_seeded,
@@ -35,6 +35,7 @@ from db import (
     get_guided_completed_section_count,
     normalize_simple,
     is_teacher_name,
+    is_teacher_email,
     assign_reading_task,
     get_assignments_for_student,
     get_all_assignments_overview,
@@ -386,14 +387,22 @@ if mode == "Student":
             st.rerun()
 else:
     st.session_state.teacher_mode = True
-    teacher_name_input = st.sidebar.text_input("Teacher name")
+
+    current_user = get_current_user()
+
+    if current_user is None:
+        st.sidebar.error("Please sign in first with your authorized Gmail/email.")
+        st.stop()
+
+    teacher_email = current_user.email.strip().lower()
+
     if st.sidebar.button("Open teacher dashboard"):
-        if is_teacher_name(teacher_name_input):
-            st.session_state.teacher_name = teacher_name_input
+        if is_teacher_email(teacher_email):
+            st.session_state.teacher_name = "Jamike"
             st.sidebar.success("Teacher access granted.")
             st.rerun()
         else:
-            st.sidebar.error("Teacher name not authorized.")
+            st.sidebar.error("This Gmail/email is not authorized for teacher access.")
 
 student_id = st.session_state.student_id
 teacher_mode = st.session_state.teacher_mode
