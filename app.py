@@ -4,7 +4,7 @@ from datetime import datetime
 
 import streamlit as st
 from gtts import gTTS
-from auth import get_current_user
+from auth import get_current_user, render_auth_sidebar
 from teacher_texts import TEACHER_TEXTS
 from db import (
     ensure_all_seeded,
@@ -221,7 +221,7 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
-
+render_auth_sidebar()
 
 def section_header(title: str, subtitle: str = "") -> None:
     st.markdown(
