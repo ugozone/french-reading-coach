@@ -995,8 +995,8 @@ def is_teacher_name(name: str) -> bool:
 
 def is_teacher_email(email: str) -> bool:
     """
-    New email-based teacher authorization.
-    Checks teacher_access.teacher_email.
+    Email-based teacher authorization.
+    Checks teacher_access.email and confirms is_active is True.
     """
     if supabase is None or not email:
         return False
@@ -1006,8 +1006,8 @@ def is_teacher_email(email: str) -> bool:
 
         result = (
             supabase.table("teacher_access")
-            .select("teacher_email, is_active")
-            .eq("teacher_email", email_clean)
+            .select("email, is_active")
+            .eq("email", email_clean)
             .eq("is_active", True)
             .limit(1)
             .execute()
