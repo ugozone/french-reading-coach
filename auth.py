@@ -1,7 +1,9 @@
 import os
+import re
+import smtplib
+from email.message import EmailMessage
 from typing import Optional
 
-import requests
 import streamlit as st
 from supabase import Client, create_client
 
@@ -17,6 +19,71 @@ def get_secret(name: str, default: str = "") -> str:
 
 SUPABASE_URL = get_secret("SUPABASE_URL", "")
 SUPABASE_KEY = get_secret("SUPABASE_KEY", get_secret("SUPABASE_ANON_KEY", ""))
+
+# All new teacher-access requests notify this administrator address.
+ADMIN_NOTIFICATION_EMAIL = "founder@intonasphereai.org"
+
+
+def _as_bool(value: str, default: bool = False) -> bool:
+    if value is None or str(value).strip() == "":
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def send_teacher_request_email(full_name: str, email: str, institution: str = "", message: str = ""):
+    """Send a new teacher-access request to the fixed administrator inbox.
+
+    SMTP credentials are read only from Streamlit secrets/environment variables.
+    No mail password is stored in source code.
+    """
+    smtp_host = get_secret("SMTP_HOST", "")
+    smtp_port_raw = get_secret("SMTP_PORT", "587")
+    smtp_username = get_secret("SMTP_USERNAME", "")
+    smtp_password = get_secret("SMTP_PASSWORD", "")
+    smtp_from_email = get_secret("SMTP_FROM_EMAIL", smtp_username)
+    smtp_from_name = get_secret("SMTP_FROM_NAME", "French Reading Coach")
+    smtp_use_ssl = _as_bool(get_secret("SMTP_USE_SSL", "false"), False)
+    smtp_use_starttls = _as_bool(get_secret("SMTP_USE_STARTTLS", "true"), True)
+
+    if not smtp_host or not smtp_username or not smtp_password or not smtp_from_email:
+        return False, "Admin email notification is not configured yet."
+
+    try:
+        smtp_port = int(smtp_port_raw)
+    except (TypeError, ValueError):
+        smtp_port = 465 if smtp_use_ssl else 587
+
+    mail = EmailMessage()
+    mail["Subject"] = f"New Teacher Access Request: {full_name}"
+    mail["From"] = f"{smtp_from_name} <{smtp_from_email}>"
+    mail["To"] = ADMIN_NOTIFICATION_EMAIL
+    mail["Reply-To"] = email
+    mail.set_content(
+        "A new teacher has requested access to the French Reading Coach.\n\n"
+        f"Name: {full_name}\n"
+        f"Email: {email}\n"
+        f"School / Institution: {institution or 'Not provided'}\n"
+        f"Message: {message or 'Not provided'}\n\n"
+        "The request has also been saved in Supabase with status=pending.\n"
+        "Review and approve the teacher from the administrator side before granting dashboard access.\n"
+    )
+
+    try:
+        if smtp_use_ssl:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=20) as server:
+                server.login(smtp_username, smtp_password)
+                server.send_message(mail)
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+                server.ehlo()
+                if smtp_use_starttls:
+                    server.starttls()
+                    server.ehlo()
+                server.login(smtp_username, smtp_password)
+                server.send_message(mail)
+        return True, f"Administrator notified at {ADMIN_NOTIFICATION_EMAIL}."
+    except Exception:
+        return False, "The request was saved, but the administrator email could not be sent."
 
 
 def get_supabase() -> Optional[Client]:
@@ -66,87 +133,123 @@ def get_current_user_email() -> Optional[str]:
     return getattr(user, "email", None) if user else None
 
 
+def submit_teacher_access_request(full_name: str, email: str, institution: str = "", message: str = ""):
+    """
+    Submit a teacher-access request to a separate pending-request table.
+
+    This intentionally does NOT write to teacher_access. Approval must be
+    performed by an administrator in Supabase.
+    """
+    if supabase is None:
+        return False, "Teacher access requests are not configured yet."
+
+    full_name_clean = (full_name or "").strip()
+    email_clean = (email or "").strip().lower()
+    institution_clean = (institution or "").strip()
+    message_clean = (message or "").strip()
+
+    if not full_name_clean:
+        return False, "Please enter your full name."
+    if not email_clean or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email_clean):
+        return False, "Please enter a valid email address."
+
+    payload = {
+        "full_name": full_name_clean,
+        "email": email_clean,
+        "institution": institution_clean or None,
+        "message": message_clean or None,
+        "status": "pending",
+    }
+
+    try:
+        supabase.table("teacher_access_requests").insert(payload).execute()
+        email_ok, email_msg = send_teacher_request_email(
+            full_name_clean,
+            email_clean,
+            institution_clean,
+            message_clean,
+        )
+        if email_ok:
+            return True, (
+                f"Request submitted and sent to {ADMIN_NOTIFICATION_EMAIL}. "
+                "An administrator must approve your teacher access before you can open the dashboard."
+            )
+        return True, (
+            "Request saved successfully in Supabase, but the administrator email notification could not be delivered. "
+            "Please contact the administrator if your request is urgent."
+        )
+    except Exception as exc:
+        error_text = str(exc).lower()
+        if "duplicate" in error_text or "unique" in error_text or "23505" in error_text:
+            return True, "A teacher-access request already exists for this email. Please wait for administrator review."
+        if "teacher_access_requests" in error_text or "relation" in error_text or "permission" in error_text:
+            return False, "Teacher request storage is not ready. The administrator needs to run TEACHER_ACCESS_SETUP.sql in Supabase."
+        return False, "Could not submit the teacher-access request. Please contact the app administrator."
+
+
 def render_auth_sidebar() -> None:
-    """Render sign in / sign up controls in the sidebar."""
+    """Render optional teacher sign-in and access-request controls."""
     st.sidebar.header("👤 Account")
-
-    with st.sidebar.expander("Connection debug", expanded=False):
-        st.write("Supabase URL:", SUPABASE_URL if SUPABASE_URL else "Not set")
-        st.write("Has Supabase key:", bool(SUPABASE_KEY))
-        st.write("Client created:", bool(supabase))
-
-        if SUPABASE_URL:
-            try:
-                r = requests.get(SUPABASE_URL, timeout=10)
-                st.write("Host test status:", r.status_code)
-            except Exception as e:
-                st.write("Host test failed:", str(e))
 
     current_user = get_current_user()
 
     if current_user:
-        st.sidebar.success(f"Logged in as {getattr(current_user, 'email', 'Unknown user')}")
-        if st.sidebar.button("Sign out"):
+        st.sidebar.success(f"Signed in as {getattr(current_user, 'email', 'Unknown user')}")
+        st.sidebar.caption("Teacher dashboard access is granted only to administrator-approved teacher emails.")
+        if st.sidebar.button("Sign out", key="account_sign_out"):
             sign_out_user()
+            st.session_state.teacher_name = ""
             st.rerun()
         return
 
-    auth_mode = st.sidebar.radio("Choose", ["Sign In", "Sign Up"])
+    st.sidebar.caption("Students do not need an account. Teacher accounts require administrator approval.")
 
-    if auth_mode == "Sign Up":
-        signup_name = st.sidebar.text_input("Full name", key="signup_name")
-        signup_email = st.sidebar.text_input("Email", key="signup_email")
-        signup_password = st.sidebar.text_input("Password", type="password", key="signup_password")
+    with st.sidebar.expander("Teacher sign in", expanded=False):
+        signin_email = st.text_input("Approved teacher email", key="signin_email")
+        signin_password = st.text_input("Password", type="password", key="signin_password")
 
-        if st.sidebar.button("Create account"):
+        if st.button("Sign in", key="teacher_signin_btn"):
             if supabase is None:
-                st.sidebar.error("Supabase is not configured.")
-                return
-
-            if not signup_name or not signup_email or not signup_password:
-                st.sidebar.error("Please fill in all fields.")
-                return
-
-            try:
-                supabase.auth.sign_up(
-                    {
-                        "email": signup_email,
-                        "password": signup_password,
-                        "options": {
-                            "data": {
-                                "full_name": signup_name
-                            }
-                        },
-                    }
-                )
-                st.sidebar.success("Account created. You can now sign in.")
-            except Exception as e:
-                st.sidebar.error(f"Sign up failed: {e}")
-
-    else:
-        signin_email = st.sidebar.text_input("Email", key="signin_email")
-        signin_password = st.sidebar.text_input("Password", type="password", key="signin_password")
-
-        if st.sidebar.button("Sign in"):
-            if supabase is None:
-                st.sidebar.error("Supabase is not configured.")
+                st.error("Teacher sign-in is not configured.")
                 return
 
             if not signin_email or not signin_password:
-                st.sidebar.error("Please enter your email and password.")
+                st.error("Please enter your email and password.")
                 return
 
             try:
                 supabase.auth.sign_in_with_password(
                     {
-                        "email": signin_email,
+                        "email": signin_email.strip().lower(),
                         "password": signin_password,
                     }
                 )
-                st.sidebar.success("Signed in successfully.")
+                st.success("Signed in successfully.")
                 st.rerun()
-            except Exception as e:
-                st.sidebar.error(f"Sign in failed: {e}")
+            except Exception:
+                st.error("Sign in failed. Check your approved email/password or contact the administrator.")
 
-    st.warning("Please sign in to save and track progress.")
-    st.stop()
+    with st.sidebar.expander("Request Teacher Access", expanded=False):
+        st.caption(
+            "Request access here. Submitting this form does not create a teacher account or grant dashboard access."
+        )
+        request_name = st.text_input("Full name", key="teacher_request_name")
+        request_email = st.text_input("Email", key="teacher_request_email")
+        request_institution = st.text_input("School / institution (optional)", key="teacher_request_institution")
+        request_message = st.text_area(
+            "Why do you need teacher access? (optional)",
+            key="teacher_request_message",
+            height=90,
+        )
+
+        if st.button("Submit access request", key="teacher_request_submit"):
+            ok, msg = submit_teacher_access_request(
+                request_name,
+                request_email,
+                request_institution,
+                request_message,
+            )
+            if ok:
+                st.success(msg)
+            else:
+                st.error(msg)

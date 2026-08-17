@@ -971,11 +971,60 @@ def get_guided_reading_attempt_details(attempt_id: str):
         return []
 
 
+TRUSTED_TEACHERS = {
+    "jamikeugo@gmail.com": {
+        "teacher_name": "Jamike",
+        "full_name": "Jamike Ugochukwu Okoroji",
+        "email": "jamikeugo@gmail.com",
+        "role": "admin",
+        "is_active": True,
+        "invite_status": "accepted",
+    },
+}
+
+
+def get_teacher_access_record(email: str):
+    """Return the matching teacher_access row, including inactive records."""
+    if not email:
+        return None
+
+    email_clean = email.strip().lower()
+    if email_clean in TRUSTED_TEACHERS:
+        return dict(TRUSTED_TEACHERS[email_clean])
+
+    if supabase is None:
+        return None
+
+    try:
+        result = (
+            supabase.table("teacher_access")
+            .select("teacher_name, full_name, email, role, is_active, invite_status")
+            .eq("email", email_clean)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception:
+        return None
+
+
+def get_teacher_profile_by_email(email: str):
+    """Return an active, approved teacher profile for the signed-in email."""
+    record = get_teacher_access_record(email)
+    if not record or not bool(record.get("is_active")):
+        return None
+    return record
+
+
+def get_teacher_display_name(profile: dict | None) -> str:
+    """Choose the teacher's real display name from the approved record."""
+    if not profile:
+        return ""
+    return (profile.get("full_name") or profile.get("teacher_name") or profile.get("email") or "Teacher").strip()
+
+
 def is_teacher_name(name: str) -> bool:
-    """
-    Old name-based teacher authorization.
-    Kept so the app does not break if another part still calls is_teacher_name().
-    """
+    """Legacy name-based authorization retained for compatibility."""
     if supabase is None or not name:
         return False
 
@@ -994,41 +1043,9 @@ def is_teacher_name(name: str) -> bool:
 
 
 def is_teacher_email(email: str) -> bool:
-    """
-    Email-based teacher authorization.
-    First checks trusted teacher emails directly.
-    Then checks teacher_access.email in Supabase.
-    """
-    if not email:
-        return False
+    """Return True only for an active, administrator-approved teacher email."""
+    return get_teacher_profile_by_email(email) is not None
 
-    email_clean = email.strip().lower()
-
-    # Directly authorized teacher/admin emails
-    authorized_emails = [
-        "jamikeugo@gmail.com",
-    ]
-
-    if email_clean in authorized_emails:
-        return True
-
-    # Optional Supabase check
-    if supabase is None:
-        return False
-
-    try:
-        result = (
-            supabase.table("teacher_access")
-            .select("email, is_active")
-            .eq("email", email_clean)
-            .eq("is_active", True)
-            .limit(1)
-            .execute()
-        )
-
-        return bool(result.data)
-    except Exception:
-        return False
 
 def assign_reading_task(teacher_name: str, student_id: str, task_id: str, due_date: str | None = None, notes: str = ""):
     if supabase is None:

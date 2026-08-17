@@ -36,6 +36,9 @@ from db import (
     normalize_simple,
     is_teacher_name,
     is_teacher_email,
+    get_teacher_access_record,
+    get_teacher_profile_by_email,
+    get_teacher_display_name,
     assign_reading_task,
     get_assignments_for_student,
     get_all_assignments_overview,
@@ -63,11 +66,26 @@ from ui_helpers import (
     render_colored_feedback_with_ipa,
     render_pronunciation_focus,
 )
+from research import (
+    RESEARCH_APPROVAL_REFERENCE,
+    RESEARCH_CONSENT_TEXT,
+    RESEARCH_CONSENT_VERSION,
+    enroll_participant,
+    get_research_admin_summary,
+    get_research_state,
+    is_research_admin,
+    leave_research_session,
+    log_research_event,
+    research_enabled,
+    research_status,
+    rows_to_csv,
+    submit_beta_feedback,
+)
 
 MAX_PHRASE_ATTEMPTS = 10
 DEFAULT_TEXT = "Bonjour, comment allez-vous aujourd'hui ?"
 
-st.set_page_config(page_title="JamiSpeak French", page_icon="🇫🇷", layout="wide")
+st.set_page_config(page_title="French Reading Coach — Public Beta", page_icon="🇫🇷", layout="wide")
 
 st.markdown("""
 <style>
@@ -214,13 +232,20 @@ summary { padding: 0.9rem 1rem !important; font-weight: 700 !important; }
 
 st.markdown("""
 <div class="jami-hero">
-    <h1>🇫🇷 JamiSpeak French</h1>
+    <h1>🇫🇷 French Reading Coach</h1>
     <p>
-        A modern French learning platform for pronunciation, guided reading,
-        grammar mastery, and teacher-supported progress tracking.
+        <strong>Public Beta — Free to use.</strong> Practice French pronunciation, guided reading,
+        and grammar immediately. No student account or payment is required.
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+_research_on, _research_status_message = research_status()
+if _research_on:
+    st.success("🔬 Optional research participation is available. Learning access does not depend on participating.")
+else:
+    st.info("🆓 Free public beta: guest learning is open. Research data collection is currently OFF unless separately activated under an approved study.")
+
 render_auth_sidebar()
 
 def section_header(title: str, subtitle: str = "") -> None:
@@ -315,9 +340,9 @@ st.sidebar.markdown("""
     border-radius: 14px;
     margin-bottom: 12px;
 ">
-    <strong style="color:#f7e7ce;">JamiSpeak Portal</strong><br>
+    <strong style="color:#f7e7ce;">French Reading Coach</strong><br>
     <span style="font-size: 13px; color:#f3dcc0;">
-        Elegant French learning with pronunciation, guided reading, grammar, and teacher monitoring.
+        Free public beta with pronunciation, guided reading, grammar, and optional teacher-supported progress.
     </span>
 </div>
 """, unsafe_allow_html=True)
@@ -330,48 +355,54 @@ if mode == "Student":
     st.session_state.teacher_name = ""
 
     if st.session_state.student_id is None:
-        st.sidebar.subheader("Student profile")
-        full_name = st.sidebar.text_input("Full name")
-        email = st.sidebar.text_input("Email")
-        phone = st.sidebar.text_input("Phone")
-        level = st.sidebar.selectbox("Level", ["A1", "A2", "B1", "B2", "C1", "C2"])
-        class_name = st.sidebar.text_input("Class name")
-        teacher_name_input = st.sidebar.text_input("Teacher name")
-        notes = st.sidebar.text_area("Notes (optional)")
+        st.sidebar.success("Guest access active")
+        st.sidebar.caption(
+            "Start learning immediately. A student profile is optional and is only needed to save progress, receive assignments, and appear in teacher tracking."
+        )
 
-        if st.sidebar.button("Continue / Create profile"):
-            if not full_name.strip():
-                st.sidebar.error("Full name is required.")
-            else:
-                student, msg = create_or_get_student(
-                    full_name=full_name,
-                    email=email,
-                    phone=phone,
-                    level=level,
-                    class_name=class_name,
-                    teacher_name=teacher_name_input,
-                    notes=notes,
-                )
+        with st.sidebar.expander("Save progress with a student profile (optional)", expanded=False):
+            st.subheader("Create or load profile")
+            full_name = st.text_input("Full name")
+            email = st.text_input("Email")
+            phone = st.text_input("Phone")
+            level = st.selectbox("Level", ["A1", "A2", "B1", "B2", "C1", "C2"])
+            class_name = st.text_input("Class name")
+            teacher_name_input = st.text_input("Teacher name")
+            notes = st.text_area("Notes (optional)")
+
+            if st.button("Create / Continue profile"):
+                if not full_name.strip():
+                    st.error("Full name is required to save a profile.")
+                else:
+                    student, msg = create_or_get_student(
+                        full_name=full_name,
+                        email=email,
+                        phone=phone,
+                        level=level,
+                        class_name=class_name,
+                        teacher_name=teacher_name_input,
+                        notes=notes,
+                    )
+                    if student:
+                        st.session_state.student_id = student["id"]
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+
+            st.markdown("---")
+            st.subheader("Find existing profile")
+            lookup_name = st.text_input("Name to find", key="lookup_name")
+            lookup_email = st.text_input("Email to find", key="lookup_email")
+
+            if st.button("Find my profile"):
+                student = find_student_by_email_or_name(lookup_name, lookup_email)
                 if student:
                     st.session_state.student_id = student["id"]
-                    st.sidebar.success(msg)
+                    st.success("Profile found.")
                     st.rerun()
                 else:
-                    st.sidebar.error(msg)
-
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("Find existing profile")
-        lookup_name = st.sidebar.text_input("Name to find", key="lookup_name")
-        lookup_email = st.sidebar.text_input("Email to find", key="lookup_email")
-
-        if st.sidebar.button("Find my profile"):
-            student = find_student_by_email_or_name(lookup_name, lookup_email)
-            if student:
-                st.session_state.student_id = student["id"]
-                st.sidebar.success("Profile found.")
-                st.rerun()
-            else:
-                st.sidebar.error("No matching profile found.")
+                    st.error("No matching profile found.")
     else:
         current_student = get_student(st.session_state.student_id)
         if current_student:
@@ -379,7 +410,7 @@ if mode == "Student":
             st.sidebar.write(f"Email: {current_student.get('email', '') or '—'}")
             st.sidebar.write(f"Level: {current_student.get('level', '') or '—'}")
             st.sidebar.write(f"Class: {current_student.get('class_name', '') or '—'}")
-            if st.sidebar.button("Switch student"):
+            if st.sidebar.button("Use guest access instead"):
                 st.session_state.student_id = None
                 st.rerun()
         else:
@@ -391,34 +422,47 @@ else:
     current_user = get_current_user()
 
     if current_user is None:
-        st.sidebar.error("Please sign in first with your authorized Gmail/email.")
-        st.stop()
+        st.session_state.teacher_name = ""
+        st.sidebar.info(
+            "Teacher access requires administrator approval. Use ‘Teacher sign in’ above if you already have an approved account, or ‘Request Teacher Access’ to apply."
+        )
+    else:
+        teacher_email = (getattr(current_user, "email", "") or "").strip().lower()
+        teacher_profile = get_teacher_profile_by_email(teacher_email)
 
-    teacher_email = current_user.email.strip().lower()
-
-    if st.sidebar.button("Open teacher dashboard"):
-        if is_teacher_email(teacher_email):
-            st.session_state.teacher_name = "Jamike"
-            st.sidebar.success("Teacher access granted.")
-            st.rerun()
+        if teacher_profile:
+            approved_name = get_teacher_display_name(teacher_profile)
+            st.session_state.teacher_name = approved_name
+            st.sidebar.success(f"Teacher access granted: {approved_name}")
+            role = (teacher_profile.get("role") or "teacher").strip().title()
+            st.sidebar.caption(f"Role: {role}")
         else:
-            st.sidebar.error("This Gmail/email is not authorized for teacher access.")
+            st.session_state.teacher_name = ""
+            access_record = get_teacher_access_record(teacher_email)
+            if access_record:
+                status = access_record.get("invite_status") or "pending/inactive"
+                st.sidebar.warning(
+                    f"Your teacher record is not active yet (status: {status}). An administrator must approve and activate it before dashboard access is granted."
+                )
+            else:
+                st.sidebar.error(
+                    "This signed-in email is not approved for teacher access. Submit a teacher-access request or contact the administrator."
+                )
 
 student_id = st.session_state.student_id
 teacher_mode = st.session_state.teacher_mode
 teacher_name = st.session_state.teacher_name
 
 if teacher_mode and teacher_name:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["🎤 Pronunciation", "🎮 Grammar Game", "📚 Guided Reading", "📊 Progress", "👩‍🏫 Teacher Dashboard"]
-    )
-elif student_id:
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["🎤 Pronunciation", "🎮 Grammar Game", "📚 Guided Reading", "📊 Progress"]
+    tab1, tab2, tab3, tab4, tab5, research_tab = st.tabs(
+        ["🎤 Pronunciation", "🎮 Grammar Game", "📚 Guided Reading", "📊 Progress", "👩‍🏫 Teacher Dashboard", "🔬 Research Beta"]
     )
 else:
-    st.info("Please create or load a student profile from the sidebar, or open teacher mode.")
-    st.stop()
+    tab1, tab2, tab3, tab4, research_tab = st.tabs(
+        ["🎤 Pronunciation", "🎮 Grammar Game", "📚 Guided Reading", "📊 Progress", "🔬 Research Beta"]
+    )
+    if student_id is None:
+        st.info("Guest mode is active. You can use the learning tools now; create a student profile only if you want progress saved and teacher assignments tracked.")
 
 
 with tab1:
@@ -539,6 +583,18 @@ with tab1:
             }
 
             save_attempt_to_db(student_id, current_lesson_id, attempt)
+            log_research_event(
+                "pronunciation_analysis",
+                "pronunciation",
+                {
+                    "score": float(score),
+                    "input_mode": input_mode,
+                    "lesson_id": str(current_lesson_id) if current_lesson_id else None,
+                    "reference_word_count": len(reference_text.split()),
+                    "recognized_word_count": len((transcript or "").split()),
+                    "feedback_item_count": len(feedback or []),
+                },
+            )
 
             st.subheader("Results")
             st.write(f"**Recognized text:** {transcript}")
@@ -632,6 +688,18 @@ with tab2:
                     xp_earned=xp_earned,
                 )
                 update_grammar_progress(student_id, grammar_lesson_id)
+                log_research_event(
+                    "grammar_answer_checked",
+                    "grammar",
+                    {
+                        "cefr_level": grammar_level,
+                        "lesson_id": str(grammar_lesson_id),
+                        "question_id": str(q["id"]),
+                        "question_type": q.get("question_type"),
+                        "is_correct": bool(is_correct),
+                        "xp_earned": int(xp_earned),
+                    },
+                )
 
                 if is_correct:
                     st.success(f"Correct! +{xp_earned} XP")
@@ -753,6 +821,21 @@ with tab3:
                     comp_correct = normalize_simple(comprehension_response) == normalize_simple(current_section["comprehension_answer"])
                     vocab_correct = normalize_simple(vocab_response) == normalize_simple(current_section["vocab_answer"])
 
+                    log_research_event(
+                        "guided_section_submitted",
+                        "guided_reading",
+                        {
+                            "cefr_level": guided_level,
+                            "task_id": str(task_id),
+                            "section_id": str(current_section["id"]),
+                            "section_order": int(current_section.get("section_order", current_index + 1)),
+                            "pronunciation_score": float(pron_score),
+                            "audio_submitted": bool(section_audio is not None),
+                            "comprehension_correct": bool(comp_correct),
+                            "vocabulary_correct": bool(vocab_correct),
+                        },
+                    )
+
                     if attempt:
                         save_guided_section_attempt(
                             attempt_id=attempt["id"],
@@ -773,6 +856,8 @@ with tab3:
 
 with tab4:
     section_header("📊 My Progress", "Track your attempts, phrase practice, and overall development.")
+    if student_id is None:
+        st.info("You are using guest access. Practice is available, but progress is not saved. Open the optional student profile in the sidebar whenever you want saved tracking.")
     current_student = get_student(student_id)
 
     if current_student:
@@ -1127,3 +1212,129 @@ if teacher_mode and teacher_name:
                             st.write(f"**Coaching message:** {section_row.get('coaching_message', '')}")
         else:
             card("No guided reading attempts yet", "Student performance data will appear here once guided reading activities are completed.")
+
+
+with research_tab:
+    section_header(
+        "🔬 Public Research Beta",
+        "Use the learning app freely. Research participation, when available, is separate, voluntary, and never required for access.",
+    )
+
+    enabled, status_message = research_status()
+    if enabled:
+        st.success(status_message)
+    else:
+        st.info(status_message)
+        st.caption("The learning tools remain available normally while research collection is off.")
+
+    with st.expander("Privacy and data-use summary", expanded=False):
+        st.markdown(
+            """
+            **Guest learning:** You can use the learning activities without creating a student account.
+
+            **Optional student profiles:** If you choose to create a profile, profile and progress information may be saved for your own progress and teacher-supported features. This is separate from research participation.
+
+            **Research layer:** The research logger is inactive unless the study is explicitly enabled and you separately consent. The v1.0 research logger is designed to store an anonymous participant code and aggregate learning measures—not your name, email, IP address, raw microphone recording, pasted free text, or speech transcript.
+
+            **Audio processing:** Audio you submit must be processed to provide pronunciation feedback. The research layer does not store the raw audio in this beta design.
+
+            **Beta feedback:** Product feedback is stored separately from the research dataset and should be treated as operational feedback unless an approved protocol/consent permits research use.
+            """
+        )
+
+    research_state = get_research_state()
+
+    if enabled and not research_state:
+        st.markdown("### Participate voluntarily")
+        st.write("Joining the research pilot is optional. Declining does not change your access to the app.")
+        st.markdown(f"**Study approval/reference:** {RESEARCH_APPROVAL_REFERENCE}")
+        st.markdown(f"**Consent version:** {RESEARCH_CONSENT_VERSION}")
+        with st.expander("Read the participant information / consent", expanded=True):
+            st.markdown(RESEARCH_CONSENT_TEXT)
+
+        age_ok = st.checkbox("I confirm that I am 18 years of age or older.", key="research_age_18")
+        consent_ok = st.checkbox(
+            "I have read the information above and voluntarily consent to participate in this research pilot.",
+            key="research_consent_ok",
+        )
+        research_level = st.selectbox(
+            "French proficiency (optional)",
+            ["Prefer not to say", "Beginner / A1", "Elementary / A2", "Intermediate / B1", "Upper-intermediate / B2", "Advanced / C1", "Proficient / C2", "Not sure"],
+            key="research_french_level",
+        )
+        language_background = st.selectbox(
+            "French language background (optional)",
+            ["Prefer not to say", "French is my first language", "French is an additional/second language", "I am currently learning French", "Other"],
+            key="research_language_background",
+        )
+        if st.button("Join the voluntary research pilot", key="join_research_pilot"):
+            ok, msg, state = enroll_participant(age_ok, consent_ok, research_level, language_background)
+            if ok:
+                st.success(msg)
+                st.caption(f"Your anonymous participant code is {state['participant_code']}. No name or email is required for this research session.")
+                st.rerun()
+            else:
+                st.error(msg)
+
+    elif enabled and research_state:
+        st.markdown("### Research participation active")
+        st.success(f"Anonymous participant code: {research_state['participant_code']}")
+        st.caption("Only the instrumented aggregate activity measures are logged for this consented browser session.")
+        if st.button("Stop research collection for this session", key="leave_research_pilot"):
+            leave_research_session()
+            st.success("Research collection has stopped for this browser session. You may continue using the learning app.")
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("### Help improve the public beta")
+    st.caption("This feedback is operational product feedback and is stored separately from the research dataset.")
+    feedback_rating = st.slider("Overall experience", 1, 5, 4, key="beta_feedback_rating")
+    feedback_category = st.selectbox(
+        "Feedback category",
+        ["General", "Pronunciation", "Guided Reading", "Grammar", "Teacher Access", "Accessibility", "Bug / technical issue", "Suggestion"],
+        key="beta_feedback_category",
+    )
+    feedback_message = st.text_area("What worked well, what was difficult, or what should we improve?", key="beta_feedback_message")
+    if st.button("Submit beta feedback", key="submit_beta_feedback"):
+        ok, msg = submit_beta_feedback(feedback_rating, feedback_category, feedback_message)
+        if ok:
+            st.success("Thank you. Your beta feedback was submitted.")
+        else:
+            st.error(msg)
+
+    current_auth_user = get_current_user()
+    current_auth_email = (getattr(current_auth_user, "email", "") or "").strip().lower() if current_auth_user else ""
+    if teacher_mode and teacher_name and is_research_admin(current_auth_email):
+        st.markdown("---")
+        st.markdown("### 🔐 Research Admin")
+        st.caption("Visible only to an approved signed-in research-admin email. Exports require the service-role key in server-side Streamlit secrets.")
+        if st.button("Load research summary", key="load_research_admin_summary"):
+            summary, msg = get_research_admin_summary()
+            if summary is None:
+                st.error(msg)
+            else:
+                st.session_state.research_admin_summary = summary
+
+        summary = st.session_state.get("research_admin_summary")
+        if isinstance(summary, dict):
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Participants", len(summary.get("participants", [])))
+            c2.metric("Sessions", len(summary.get("sessions", [])))
+            c3.metric("Research Events", len(summary.get("events", [])))
+            c4.metric("Beta Feedback", len(summary.get("feedback", [])))
+
+            for label, key, filename in [
+                ("Participants", "participants", "research_participants.csv"),
+                ("Sessions", "sessions", "research_sessions.csv"),
+                ("Events", "events", "research_events.csv"),
+                ("Beta Feedback", "feedback", "beta_feedback.csv"),
+            ]:
+                csv_data = rows_to_csv(summary.get(key, []))
+                st.download_button(
+                    f"Download {label} CSV",
+                    data=csv_data,
+                    file_name=filename,
+                    mime="text/csv",
+                    disabled=not bool(csv_data),
+                    key=f"download_{key}_csv",
+                )
