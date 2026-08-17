@@ -187,8 +187,137 @@ def submit_teacher_access_request(full_name: str, email: str, institution: str =
         return False, "Could not submit the teacher-access request. Please contact the app administrator."
 
 
+
+def render_teacher_invite_activation() -> bool:
+    """
+    Handle a Supabase teacher invitation using token_hash in the URL.
+
+    Expected URL:
+    ?token_hash=...&type=invite
+
+    Returns True while the invitation activation interface is being shown.
+    """
+    try:
+        token_hash = str(st.query_params.get("token_hash", "") or "").strip()
+        invite_type = str(st.query_params.get("type", "") or "").strip().lower()
+    except Exception:
+        token_hash = ""
+        invite_type = ""
+
+    if not token_hash or invite_type != "invite":
+        return False
+
+    st.sidebar.header("🔐 Activate Teacher Account")
+    st.sidebar.success("Teacher invitation detected.")
+    st.sidebar.caption(
+        "Create your password below. After activation, use the normal Teacher sign in panel."
+    )
+
+    with st.sidebar.form("teacher_invite_activation_form"):
+        new_password = st.text_input(
+            "Create password",
+            type="password",
+            key="teacher_invite_password",
+        )
+        confirm_password = st.text_input(
+            "Confirm password",
+            type="password",
+            key="teacher_invite_password_confirm",
+        )
+        activate = st.form_submit_button("Activate Teacher Account")
+
+    if activate:
+        if supabase is None:
+            st.sidebar.error("Supabase authentication is not configured.")
+            return True
+
+        if len(new_password or "") < 8:
+            st.sidebar.error("Password must contain at least 8 characters.")
+            return True
+
+        if new_password != confirm_password:
+            st.sidebar.error("The two passwords do not match.")
+            return True
+
+        try:
+            # Verify the one-time Supabase invitation token.
+            supabase.auth.verify_otp(
+                {
+                    "token_hash": token_hash,
+                    "type": "invite",
+                }
+            )
+
+            # The verified invitation creates an authenticated session,
+            # allowing the invited user to choose a password.
+            supabase.auth.update_user(
+                {
+                    "password": new_password,
+                }
+            )
+
+            user = get_current_user()
+            activated_email = (
+                getattr(user, "email", "")
+                if user is not None
+                else ""
+            )
+
+            # Require a fresh normal login after activation.
+            try:
+                supabase.auth.sign_out()
+            except Exception:
+                pass
+
+            st.session_state["teacher_activation_message"] = (
+                f"Teacher account activated"
+                + (f" for {activated_email}" if activated_email else "")
+                + ". You can now sign in with your new password."
+            )
+
+            # Remove the one-time token from the browser URL.
+            try:
+                st.query_params.clear()
+            except Exception:
+                pass
+
+            st.rerun()
+
+        except Exception as exc:
+            error_text = str(exc).lower()
+
+            if (
+                "expired" in error_text
+                or "invalid" in error_text
+                or "otp" in error_text
+                or "token" in error_text
+            ):
+                st.sidebar.error(
+                    "This invitation link is invalid or has expired. "
+                    "Ask the administrator to send a new invitation."
+                )
+            else:
+                st.sidebar.error(
+                    "Teacher account activation could not be completed. "
+                    "Please request a new invitation or contact the administrator."
+                )
+
+    return True
+
+
 def render_auth_sidebar() -> None:
     """Render optional teacher sign-in and access-request controls."""
+
+    activation_message = st.session_state.pop(
+        "teacher_activation_message",
+        "",
+    )
+    if activation_message:
+        st.sidebar.success(activation_message)
+
+    if render_teacher_invite_activation():
+        return
+
     st.sidebar.header("👤 Account")
 
     current_user = get_current_user()
