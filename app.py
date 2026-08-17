@@ -227,6 +227,85 @@ summary { padding: 0.9rem 1rem !important; font-weight: 700 !important; }
     .jami-card { padding: 16px; border-radius: 16px; }
     .stButton > button { width: 100%; }
 }
+
+/* BEGIN SIDEBAR ACCESS THEME */
+
+/* Teacher sign-in and Request Teacher Access cards */
+section[data-testid="stSidebar"] details,
+section[data-testid="stSidebar"] div[data-testid="stExpander"] details {
+    background: linear-gradient(
+        145deg,
+        rgba(91, 57, 31, 0.96),
+        rgba(55, 32, 18, 0.98)
+    ) !important;
+    border: 1px solid rgba(212, 160, 23, 0.45) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18) !important;
+    overflow: hidden !important;
+}
+
+/* Expander heading area */
+section[data-testid="stSidebar"] details > summary,
+section[data-testid="stSidebar"] div[data-testid="stExpander"] summary {
+    background: linear-gradient(
+        90deg,
+        rgba(92, 58, 32, 0.96),
+        rgba(70, 43, 24, 0.96)
+    ) !important;
+    color: #fff2dc !important;
+    border-radius: 14px !important;
+    font-weight: 700 !important;
+}
+
+/* Remove white background from expander body */
+section[data-testid="stSidebar"] details > div,
+section[data-testid="stSidebar"] div[data-testid="stExpanderDetails"] {
+    background: transparent !important;
+}
+
+/* Teacher form labels */
+section[data-testid="stSidebar"] details label,
+section[data-testid="stSidebar"] details p,
+section[data-testid="stSidebar"] details span {
+    color: #f8e7cd !important;
+}
+
+/* Input boxes: warm cream rather than bright white */
+section[data-testid="stSidebar"] details input,
+section[data-testid="stSidebar"] details textarea {
+    background: #f5ead8 !important;
+    color: #2b1d14 !important;
+    -webkit-text-fill-color: #2b1d14 !important;
+    border: 1px solid #d4a017 !important;
+    border-radius: 12px !important;
+}
+
+/* Input placeholders */
+section[data-testid="stSidebar"] details input::placeholder,
+section[data-testid="stSidebar"] details textarea::placeholder {
+    color: #796552 !important;
+    opacity: 1 !important;
+}
+
+/* Gold sign-in/request buttons */
+section[data-testid="stSidebar"] details .stButton > button {
+    background: linear-gradient(
+        90deg,
+        #9b672f 0%,
+        #d4a017 100%
+    ) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 220, 130, 0.30) !important;
+    box-shadow: 0 6px 16px rgba(212, 160, 23, 0.20) !important;
+}
+
+/* Keep sidebar radio area consistent */
+section[data-testid="stSidebar"] [data-testid="stRadio"] {
+    background: transparent !important;
+}
+
+/* END SIDEBAR ACCESS THEME */
+
 </style>
 """, unsafe_allow_html=True)
 
