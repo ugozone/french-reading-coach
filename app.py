@@ -1219,17 +1219,39 @@ with tab3:
                     )
                     st.caption("If iPhone playback is blocked, use the download button below the audio player.")
 
-                section_audio = st.audio_input("🎤 Read this section aloud", key=f"guided_audio_{current_section['id']}")
-                comprehension_response = st.text_input(current_section["comprehension_question"], key=f"guided_comp_{current_section['id']}")
-                vocab_response = st.text_input(current_section["vocab_question"], key=f"guided_vocab_{current_section['id']}")
+                # A retry nonce gives the student fresh controls when they
+                # deliberately choose to try the same section again.
+                retry_nonce_key = f"guided_retry_nonce_{current_section['id']}"
+                retry_nonce = st.session_state.get(retry_nonce_key, 0)
+
+                audio_key = f"guided_audio_{current_section['id']}_{retry_nonce}"
+                comp_key = f"guided_comp_{current_section['id']}_{retry_nonce}"
+                vocab_key = f"guided_vocab_{current_section['id']}_{retry_nonce}"
+                feedback_state_key = f"guided_feedback_{current_section['id']}"
+
+                section_audio = st.audio_input(
+                    "🎤 Read this section aloud",
+                    key=audio_key,
+                )
+
+                comprehension_response = st.text_input(
+                    current_section["comprehension_question"],
+                    key=comp_key,
+                )
+
+                vocab_response = st.text_input(
+                    current_section["vocab_question"],
+                    key=vocab_key,
+                )
 
                 if st.button(
-                    "✅ Analyze, save & continue",
-                    key=f"submit_section_{current_section['id']}",
+                    "✅ Analyze & save feedback",
+                    key=f"submit_section_{current_section['id']}_{retry_nonce}",
                 ):
                     recognized_text = ""
                     pron_score = 0.0
                     coaching_message = "No audio submitted."
+                    feedback = []
 
                     if section_audio is not None:
                         with tempfile.NamedTemporaryFile(
@@ -1240,14 +1262,17 @@ with tab3:
                             wav_path = tmp_wav.name
 
                         recognized_text = transcribe_audio_file(wav_path)
+
                         pron_score = pronunciation_score(
                             current_section["section_text"],
                             recognized_text,
                         )
+
                         feedback = word_feedback(
                             current_section["section_text"],
                             recognized_text,
                         )
+
                         coaching_message = generate_coaching_message(
                             pron_score,
                             feedback,
@@ -1288,17 +1313,23 @@ with tab3:
                             )
                             st.stop()
 
-                    st.write(f"**Recognized text:** {recognized_text}")
-                    st.write(
-                        f"**Pronunciation score:** {pron_score}/100"
-                    )
-                    render_coaching_message(coaching_message)
-
-                    if section_audio is not None:
-                        st.markdown(
-                            render_colored_feedback_with_ipa(feedback),
-                            unsafe_allow_html=True,
-                        )
+                    # Keep the feedback visible instead of immediately
+                    # moving the student to the next section.
+                    st.session_state[feedback_state_key] = {
+                        "recognized_text": recognized_text,
+                        "pronunciation_score": pron_score,
+                        "coaching_message": coaching_message,
+                        "word_feedback": feedback,
+                        "audio_submitted": section_audio is not None,
+                        "comprehension_response": comprehension_response,
+                        "comprehension_correct": comp_correct,
+                        "comprehension_answer": current_section[
+                            "comprehension_answer"
+                        ],
+                        "vocab_response": vocab_response,
+                        "vocab_correct": vocab_correct,
+                        "vocab_answer": current_section["vocab_answer"],
+                    }
 
                     log_research_event(
                         "guided_section_submitted",
@@ -1322,9 +1353,144 @@ with tab3:
                         },
                     )
 
-                    # Automatically advance only AFTER a successful save.
-                    st.session_state.guided_section_index = current_index + 1
-                    st.rerun()
+                # -----------------------------------------------------
+                # STUDENT FEEDBACK PANEL
+                # -----------------------------------------------------
+                section_feedback = st.session_state.get(feedback_state_key)
+
+                if section_feedback:
+                    st.markdown("---")
+                    st.markdown("### 🧭 Your feedback")
+
+                    st.markdown("#### 🎤 What the app heard")
+                    recognized = (
+                        section_feedback.get("recognized_text")
+                        or "No speech was recognized."
+                    )
+                    st.write(recognized)
+
+                    st.metric(
+                        "Pronunciation score",
+                        f"{section_feedback.get('pronunciation_score', 0):.1f}/100",
+                    )
+
+                    st.markdown("#### 💡 Pronunciation coaching")
+                    render_coaching_message(
+                        section_feedback.get(
+                            "coaching_message",
+                            "Keep practicing.",
+                        )
+                    )
+
+                    if (
+                        section_feedback.get("audio_submitted")
+                        and section_feedback.get("word_feedback")
+                    ):
+                        st.markdown("#### 🔎 Word-by-word feedback")
+                        st.markdown(
+                            render_colored_feedback_with_ipa(
+                                section_feedback["word_feedback"]
+                            ),
+                            unsafe_allow_html=True,
+                        )
+
+                    st.markdown("#### 🧠 Comprehension")
+
+                    if section_feedback.get("comprehension_correct"):
+                        st.success("✅ Correct!")
+                    else:
+                        st.error("❌ Not quite yet.")
+
+                    st.write(
+                        "**Your answer:** "
+                        + (
+                            section_feedback.get(
+                                "comprehension_response"
+                            )
+                            or "No answer"
+                        )
+                    )
+
+                    st.write(
+                        "**Correct answer:** "
+                        + str(
+                            section_feedback.get(
+                                "comprehension_answer",
+                                "",
+                            )
+                        )
+                    )
+
+                    if not section_feedback.get("comprehension_correct"):
+                        st.info(
+                            "Compare your answer with the correct answer, "
+                            "then reread the section and notice the information "
+                            "that answers the question."
+                        )
+
+                    st.markdown("#### 🧩 Vocabulary")
+
+                    if section_feedback.get("vocab_correct"):
+                        st.success("✅ Correct!")
+                    else:
+                        st.error("❌ Not quite yet.")
+
+                    st.write(
+                        "**Your answer:** "
+                        + (
+                            section_feedback.get("vocab_response")
+                            or "No answer"
+                        )
+                    )
+
+                    st.write(
+                        "**Correct answer:** "
+                        + str(
+                            section_feedback.get(
+                                "vocab_answer",
+                                "",
+                            )
+                        )
+                    )
+
+                    if not section_feedback.get("vocab_correct"):
+                        st.info(
+                            "Study the correct expression, say it aloud, "
+                            "and try the section again."
+                        )
+
+                    st.markdown("#### 🎯 What should I do next?")
+
+                    retry_col, continue_col = st.columns(2)
+
+                    with retry_col:
+                        if st.button(
+                            "🔄 Try this section again",
+                            key=f"retry_guided_{current_section['id']}_{retry_nonce}",
+                            use_container_width=True,
+                        ):
+                            st.session_state[retry_nonce_key] = retry_nonce + 1
+                            st.session_state.pop(
+                                feedback_state_key,
+                                None,
+                            )
+                            st.rerun()
+
+                    with continue_col:
+                        if st.button(
+                            "➡️ Continue to next section",
+                            key=f"continue_guided_{current_section['id']}_{retry_nonce}",
+                            use_container_width=True,
+                        ):
+                            st.session_state.pop(
+                                feedback_state_key,
+                                None,
+                            )
+                            st.session_state.guided_section_index = (
+                                current_index + 1
+                            )
+                            st.rerun()
+
 
 
 with tab4:
