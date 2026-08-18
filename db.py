@@ -4,8 +4,34 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from auth import supabase
+from supabase import create_client
+
+from auth import supabase, SUPABASE_URL, get_secret
 from teacher_texts import TEACHER_TEXTS
+
+def _get_server_db_client():
+    """
+    Server-only database client.
+
+    Uses the Supabase service-role/secret key stored in Streamlit Secrets.
+    This client is NEVER sent to the browser and is used only by server-side
+    database functions in this module.
+    """
+    service_key = get_secret("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if SUPABASE_URL and service_key:
+        try:
+            return create_client(SUPABASE_URL, service_key)
+        except Exception:
+            pass
+
+    # Fallback keeps the app loadable if the server key is unavailable.
+    return supabase
+
+
+db_supabase = _get_server_db_client()
+
+
 
 
 GRAMMAR_LESSONS = [
@@ -269,7 +295,7 @@ def lesson_key_from_text(text_data: dict) -> str:
 
 
 def ensure_lessons_seeded():
-    if supabase is None:
+    if db_supabase is None:
         return
     rows = []
     for item in TEACHER_TEXTS:
@@ -287,17 +313,17 @@ def ensure_lessons_seeded():
             }
         )
     try:
-        supabase.table("lessons").upsert(rows, on_conflict="lesson_key").execute()
+        db_supabase.table("lessons").upsert(rows, on_conflict="lesson_key").execute()
     except Exception:
         pass
 
 
 def ensure_grammar_seeded():
-    if supabase is None:
+    if db_supabase is None:
         return
     try:
-        supabase.table("grammar_lessons").upsert(GRAMMAR_LESSONS, on_conflict="lesson_key").execute()
-        lesson_result = supabase.table("grammar_lessons").select("id, lesson_key").execute()
+        db_supabase.table("grammar_lessons").upsert(GRAMMAR_LESSONS, on_conflict="lesson_key").execute()
+        lesson_result = db_supabase.table("grammar_lessons").select("id, lesson_key").execute()
         lesson_map = {row["lesson_key"]: row["id"] for row in (lesson_result.data or [])}
     except Exception:
         return
@@ -307,7 +333,7 @@ def ensure_grammar_seeded():
         if not lesson_id:
             continue
         try:
-            existing = supabase.table("grammar_questions").select("id").eq("lesson_id", lesson_id).limit(1).execute()
+            existing = db_supabase.table("grammar_questions").select("id").eq("lesson_id", lesson_id).limit(1).execute()
             if existing.data:
                 continue
             rows = []
@@ -325,17 +351,17 @@ def ensure_grammar_seeded():
                         "xp_value": q["xp_value"],
                     }
                 )
-            supabase.table("grammar_questions").insert(rows).execute()
+            db_supabase.table("grammar_questions").insert(rows).execute()
         except Exception:
             pass
 
 
 def ensure_guided_reading_seeded():
-    if supabase is None:
+    if db_supabase is None:
         return
     try:
-        supabase.table("guided_reading_tasks").upsert(GUIDED_READING_TASKS, on_conflict="task_key").execute()
-        task_result = supabase.table("guided_reading_tasks").select("id, task_key").execute()
+        db_supabase.table("guided_reading_tasks").upsert(GUIDED_READING_TASKS, on_conflict="task_key").execute()
+        task_result = db_supabase.table("guided_reading_tasks").select("id, task_key").execute()
         task_map = {row["task_key"]: row["id"] for row in (task_result.data or [])}
     except Exception:
         return
@@ -345,7 +371,7 @@ def ensure_guided_reading_seeded():
         if not task_id:
             continue
         try:
-            existing = supabase.table("guided_reading_sections").select("id").eq("task_id", task_id).limit(1).execute()
+            existing = db_supabase.table("guided_reading_sections").select("id").eq("task_id", task_id).limit(1).execute()
             if existing.data:
                 continue
             rows = []
@@ -361,7 +387,7 @@ def ensure_guided_reading_seeded():
                         "vocab_answer": section["vocab_answer"],
                     }
                 )
-            supabase.table("guided_reading_sections").insert(rows).execute()
+            db_supabase.table("guided_reading_sections").insert(rows).execute()
         except Exception:
             pass
 
@@ -372,68 +398,127 @@ def ensure_all_seeded():
     ensure_guided_reading_seeded()
 
 
-def create_or_get_student(full_name: str, email: str, phone: str, level: str, class_name: str, teacher_name: str, notes: str):
-    if supabase is None:
+def create_or_get_student(
+    full_name: str,
+    email: str,
+    phone: str,
+    level: str,
+    class_name: str,
+    teacher_name: str,
+    notes: str,
+):
+    if db_supabase is None:
         return None, "Database not configured."
 
     email_clean = (email or "").strip().lower()
-    full_name_clean = (full_name or "").strip()
+    full_name_clean = " ".join((full_name or "").strip().split())
+
+    if not full_name_clean:
+        return None, "Full name is required."
+
+    if not email_clean:
+        return None, "Email is required for a saved student profile."
 
     try:
-        if email_clean:
-            existing = supabase.table("students").select("*").eq("email", email_clean).limit(1).execute()
-            if existing.data:
-                return existing.data[0], "Existing profile loaded."
+        # Email is the primary lookup. Do not merge students merely because
+        # two people have the same name.
+        existing = (
+            db_supabase.table("students")
+            .select("*")
+            .eq("email", email_clean)
+            .limit(1)
+            .execute()
+        )
 
-        existing_name = supabase.table("students").select("*").eq("full_name", full_name_clean).limit(1).execute()
-        if existing_name.data:
-            return existing_name.data[0], "Existing profile loaded."
+        if existing.data:
+            student = existing.data[0]
 
-        result = supabase.table("students").insert(
-            {
-                "full_name": full_name_clean,
-                "email": email_clean if email_clean else None,
-                "phone": (phone or "").strip() or None,
-                "level": (level or "").strip() or None,
-                "class_name": (class_name or "").strip() or None,
-                "teacher_name": (teacher_name or "").strip() or None,
-                "notes": (notes or "").strip() or None,
-            }
-        ).execute()
+            existing_name = " ".join(
+                str(student.get("full_name", "") or "").strip().split()
+            )
+
+            if existing_name.casefold() == full_name_clean.casefold():
+                return student, "Existing profile loaded."
+
+            return (
+                None,
+                "A saved profile already exists for this email. "
+                "Enter the same full name used when the profile was created.",
+            )
+
+        result = (
+            db_supabase.table("students")
+            .insert(
+                {
+                    "full_name": full_name_clean,
+                    "email": email_clean,
+                    "phone": (phone or "").strip() or None,
+                    "level": (level or "").strip() or None,
+                    "class_name": (class_name or "").strip() or None,
+                    "teacher_name": (teacher_name or "").strip() or None,
+                    "notes": (notes or "").strip() or None,
+                }
+            )
+            .execute()
+        )
+
         if result.data:
-            return result.data[0], "Profile created."
-    except Exception as e:
-        return None, str(e)
+            return result.data[0], "Profile created. Progress saving is now active."
 
-    return None, "Could not create or load student profile."
+    except Exception as exc:
+        return None, str(exc)
+
+    return None, "Could not create student profile."
+
 
 
 def find_student_by_email_or_name(full_name: str, email: str):
-    if supabase is None:
+    """
+    Load an existing profile only when BOTH exact email and full name match.
+    This is intentionally stricter than the previous public lookup.
+    """
+    if db_supabase is None:
         return None
+
+    email_clean = (email or "").strip().lower()
+    full_name_clean = " ".join((full_name or "").strip().split())
+
+    if not email_clean or not full_name_clean:
+        return None
+
     try:
-        email_clean = (email or "").strip().lower()
-        full_name_clean = (full_name or "").strip()
+        result = (
+            db_supabase.table("students")
+            .select("*")
+            .eq("email", email_clean)
+            .limit(1)
+            .execute()
+        )
 
-        if email_clean:
-            result = supabase.table("students").select("*").eq("email", email_clean).limit(1).execute()
-            if result.data:
-                return result.data[0]
+        if not result.data:
+            return None
 
-        if full_name_clean:
-            result = supabase.table("students").select("*").eq("full_name", full_name_clean).limit(1).execute()
-            if result.data:
-                return result.data[0]
+        student = result.data[0]
+
+        existing_name = " ".join(
+            str(student.get("full_name", "") or "").strip().split()
+        )
+
+        if existing_name.casefold() == full_name_clean.casefold():
+            return student
+
     except Exception:
         return None
+
     return None
 
 
+
 def get_student(student_id: str):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return None
     try:
-        result = supabase.table("students").select("*").eq("id", student_id).limit(1).execute()
+        result = db_supabase.table("students").select("*").eq("id", student_id).limit(1).execute()
         if result.data:
             return result.data[0]
     except Exception:
@@ -442,20 +527,20 @@ def get_student(student_id: str):
 
 
 def get_all_students():
-    if supabase is None:
+    if db_supabase is None:
         return []
     try:
-        result = supabase.table("students").select("*").order("created_at", desc=True).execute()
+        result = db_supabase.table("students").select("*").order("created_at", desc=True).execute()
         return result.data or []
     except Exception:
         return []
 
 
 def get_lesson_id_for_text(selected_text_data: dict):
-    if supabase is None or selected_text_data is None:
+    if db_supabase is None or selected_text_data is None:
         return None
     try:
-        result = supabase.table("lessons").select("id").eq("lesson_key", lesson_key_from_text(selected_text_data)).limit(1).execute()
+        result = db_supabase.table("lessons").select("id").eq("lesson_key", lesson_key_from_text(selected_text_data)).limit(1).execute()
         if result.data:
             return result.data[0]["id"]
     except Exception:
@@ -464,11 +549,11 @@ def get_lesson_id_for_text(selected_text_data: dict):
 
 
 def update_progress_summary(student_id: str, lesson_id):
-    if supabase is None or lesson_id is None or student_id is None:
+    if db_supabase is None or lesson_id is None or student_id is None:
         return
     try:
         attempts = (
-            supabase.table("attempts")
+            db_supabase.table("attempts")
             .select("score, created_at")
             .eq("student_id", student_id)
             .eq("lesson_id", lesson_id)
@@ -479,7 +564,7 @@ def update_progress_summary(student_id: str, lesson_id):
         if not rows:
             return
         scores = [float(r["score"]) for r in rows]
-        supabase.table("progress_summary").upsert(
+        db_supabase.table("progress_summary").upsert(
             {
                 "student_id": student_id,
                 "lesson_id": lesson_id,
@@ -495,10 +580,10 @@ def update_progress_summary(student_id: str, lesson_id):
 
 
 def save_attempt_to_db(student_id: str, lesson_id, attempt: dict):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return
     try:
-        attempt_insert = supabase.table("attempts").insert(
+        attempt_insert = db_supabase.table("attempts").insert(
             {
                 "student_id": student_id,
                 "lesson_id": lesson_id,
@@ -523,17 +608,17 @@ def save_attempt_to_db(student_id: str, lesson_id, attempt: dict):
                 }
             )
         if feedback_rows:
-            supabase.table("attempt_feedback").insert(feedback_rows).execute()
+            db_supabase.table("attempt_feedback").insert(feedback_rows).execute()
         update_progress_summary(student_id, lesson_id)
     except Exception:
         pass
 
 
 def save_phrase_attempt_to_db(student_id: str, lesson_id, reference_text: str, phrase_result: dict):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return
     try:
-        phrase_insert = supabase.table("phrase_attempts").insert(
+        phrase_insert = db_supabase.table("phrase_attempts").insert(
             {
                 "student_id": student_id,
                 "lesson_id": lesson_id,
@@ -557,27 +642,27 @@ def save_phrase_attempt_to_db(student_id: str, lesson_id, reference_text: str, p
                 }
             )
         if feedback_rows:
-            supabase.table("phrase_feedback").insert(feedback_rows).execute()
+            db_supabase.table("phrase_feedback").insert(feedback_rows).execute()
         update_progress_summary(student_id, lesson_id)
     except Exception:
         pass
 
 
 def get_progress_rows(student_id: str):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return []
     try:
-        result = supabase.table("progress_summary").select("best_score, average_score, attempt_count, last_practiced_at, lesson_id").eq("student_id", student_id).execute()
+        result = db_supabase.table("progress_summary").select("best_score, average_score, attempt_count, last_practiced_at, lesson_id").eq("student_id", student_id).execute()
         return result.data or []
     except Exception:
         return []
 
 
 def get_attempt_history(student_id: str, limit: int = 10):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return []
     try:
-        result = supabase.table("attempts").select("*").eq("student_id", student_id).order("created_at", desc=True).limit(limit).execute()
+        result = db_supabase.table("attempts").select("*").eq("student_id", student_id).order("created_at", desc=True).limit(limit).execute()
         attempts = result.data or []
     except Exception:
         return []
@@ -585,7 +670,7 @@ def get_attempt_history(student_id: str, limit: int = 10):
     enriched = []
     for attempt in attempts:
         try:
-            fb = supabase.table("attempt_feedback").select("*").eq("attempt_id", attempt["id"]).execute()
+            fb = db_supabase.table("attempt_feedback").select("*").eq("attempt_id", attempt["id"]).execute()
             attempt["feedback"] = fb.data or []
         except Exception:
             attempt["feedback"] = []
@@ -594,10 +679,10 @@ def get_attempt_history(student_id: str, limit: int = 10):
 
 
 def get_phrase_history(student_id: str, limit: int = 10):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return []
     try:
-        result = supabase.table("phrase_attempts").select("*").eq("student_id", student_id).order("created_at", desc=True).limit(limit).execute()
+        result = db_supabase.table("phrase_attempts").select("*").eq("student_id", student_id).order("created_at", desc=True).limit(limit).execute()
         phrases = result.data or []
     except Exception:
         return []
@@ -605,7 +690,7 @@ def get_phrase_history(student_id: str, limit: int = 10):
     enriched = []
     for phrase in phrases:
         try:
-            fb = supabase.table("phrase_feedback").select("*").eq("phrase_attempt_id", phrase["id"]).execute()
+            fb = db_supabase.table("phrase_feedback").select("*").eq("phrase_attempt_id", phrase["id"]).execute()
             phrase["feedback"] = fb.data or []
         except Exception:
             phrase["feedback"] = []
@@ -614,10 +699,10 @@ def get_phrase_history(student_id: str, limit: int = 10):
 
 
 def get_grammar_lessons(level: str | None = None):
-    if supabase is None:
+    if db_supabase is None:
         return []
     try:
-        query = supabase.table("grammar_lessons").select("*").order("difficulty").order("title")
+        query = db_supabase.table("grammar_lessons").select("*").order("difficulty").order("title")
         if level:
             query = query.eq("cefr_level", level)
         result = query.execute()
@@ -627,20 +712,20 @@ def get_grammar_lessons(level: str | None = None):
 
 
 def get_grammar_questions(lesson_id: str):
-    if supabase is None:
+    if db_supabase is None:
         return []
     try:
-        result = supabase.table("grammar_questions").select("*").eq("lesson_id", lesson_id).order("question_order").execute()
+        result = db_supabase.table("grammar_questions").select("*").eq("lesson_id", lesson_id).order("question_order").execute()
         return result.data or []
     except Exception:
         return []
 
 
 def save_grammar_attempt(student_id: str, lesson_id: str, question_id: str, user_answer: str, is_correct: bool, xp_earned: int):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return
     try:
-        supabase.table("grammar_attempts").insert(
+        db_supabase.table("grammar_attempts").insert(
             {
                 "student_id": student_id,
                 "lesson_id": lesson_id,
@@ -655,11 +740,11 @@ def save_grammar_attempt(student_id: str, lesson_id: str, question_id: str, user
 
 
 def update_grammar_progress(student_id: str, lesson_id: str):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return
     try:
         attempts = (
-            supabase.table("grammar_attempts")
+            db_supabase.table("grammar_attempts")
             .select("is_correct, xp_earned, answered_at")
             .eq("student_id", student_id)
             .eq("lesson_id", lesson_id)
@@ -690,7 +775,7 @@ def update_grammar_progress(student_id: str, lesson_id: str):
         elif accuracy >= 0.5:
             mastery = "Developing"
 
-        supabase.table("grammar_progress").upsert(
+        db_supabase.table("grammar_progress").upsert(
             {
                 "student_id": student_id,
                 "lesson_id": lesson_id,
@@ -708,10 +793,10 @@ def update_grammar_progress(student_id: str, lesson_id: str):
 
 
 def get_grammar_progress(student_id: str, lesson_id: str):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return None
     try:
-        result = supabase.table("grammar_progress").select("*").eq("student_id", student_id).eq("lesson_id", lesson_id).limit(1).execute()
+        result = db_supabase.table("grammar_progress").select("*").eq("student_id", student_id).eq("lesson_id", lesson_id).limit(1).execute()
         if result.data:
             return result.data[0]
     except Exception:
@@ -720,10 +805,10 @@ def get_grammar_progress(student_id: str, lesson_id: str):
 
 
 def get_grammar_attempt_summary(student_id: str, lesson_id: str):
-    if supabase is None or student_id is None or lesson_id is None:
+    if db_supabase is None or student_id is None or lesson_id is None:
         return {"answered": 0, "correct": 0, "xp": 0}
     try:
-        result = supabase.table("grammar_attempts").select("is_correct, xp_earned").eq("student_id", student_id).eq("lesson_id", lesson_id).execute()
+        result = db_supabase.table("grammar_attempts").select("is_correct, xp_earned").eq("student_id", student_id).eq("lesson_id", lesson_id).execute()
         rows = result.data or []
         return {
             "answered": len(rows),
@@ -735,10 +820,10 @@ def get_grammar_attempt_summary(student_id: str, lesson_id: str):
 
 
 def get_guided_reading_tasks(level: str | None = None):
-    if supabase is None:
+    if db_supabase is None:
         return []
     try:
-        query = supabase.table("guided_reading_tasks").select("*").order("title")
+        query = db_supabase.table("guided_reading_tasks").select("*").order("title")
         if level:
             query = query.eq("cefr_level", level)
         result = query.execute()
@@ -748,21 +833,21 @@ def get_guided_reading_tasks(level: str | None = None):
 
 
 def get_guided_reading_sections(task_id: str):
-    if supabase is None:
+    if db_supabase is None:
         return []
     try:
-        result = supabase.table("guided_reading_sections").select("*").eq("task_id", task_id).order("section_order").execute()
+        result = db_supabase.table("guided_reading_sections").select("*").eq("task_id", task_id).order("section_order").execute()
         return result.data or []
     except Exception:
         return []
 
 
 def create_guided_reading_attempt(student_id: str, task_id: str):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return None
     try:
         existing = (
-            supabase.table("guided_reading_attempts")
+            db_supabase.table("guided_reading_attempts")
             .select("*")
             .eq("student_id", student_id)
             .eq("task_id", task_id)
@@ -774,7 +859,7 @@ def create_guided_reading_attempt(student_id: str, task_id: str):
         if existing.data:
             return existing.data[0]
 
-        result = supabase.table("guided_reading_attempts").insert(
+        result = db_supabase.table("guided_reading_attempts").insert(
             {"student_id": student_id, "task_id": task_id, "status": "in_progress"}
         ).execute()
         if result.data:
@@ -785,11 +870,11 @@ def create_guided_reading_attempt(student_id: str, task_id: str):
 
 
 def get_latest_in_progress_guided_attempt(student_id: str, task_id: str):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return None
     try:
         result = (
-            supabase.table("guided_reading_attempts")
+            db_supabase.table("guided_reading_attempts")
             .select("*")
             .eq("student_id", student_id)
             .eq("task_id", task_id)
@@ -822,10 +907,10 @@ def save_guided_section_attempt(
     vocab_correct: bool,
     coaching_message: str,
 ):
-    if supabase is None:
+    if db_supabase is None:
         return
     try:
-        existing = supabase.table("guided_reading_section_attempts").select("id").eq("attempt_id", attempt_id).eq("section_id", section_id).limit(1).execute()
+        existing = db_supabase.table("guided_reading_section_attempts").select("id").eq("attempt_id", attempt_id).eq("section_id", section_id).limit(1).execute()
         payload = {
             "attempt_id": attempt_id,
             "section_id": section_id,
@@ -838,28 +923,28 @@ def save_guided_section_attempt(
             "coaching_message": coaching_message,
         }
         if existing.data:
-            supabase.table("guided_reading_section_attempts").update(payload).eq("id", existing.data[0]["id"]).execute()
+            db_supabase.table("guided_reading_section_attempts").update(payload).eq("id", existing.data[0]["id"]).execute()
         else:
-            supabase.table("guided_reading_section_attempts").insert(payload).execute()
+            db_supabase.table("guided_reading_section_attempts").insert(payload).execute()
     except Exception:
         pass
 
 
 def get_guided_completed_section_count(attempt_id: str) -> int:
-    if supabase is None or attempt_id is None:
+    if db_supabase is None or attempt_id is None:
         return 0
     try:
-        result = supabase.table("guided_reading_section_attempts").select("id").eq("attempt_id", attempt_id).execute()
+        result = db_supabase.table("guided_reading_section_attempts").select("id").eq("attempt_id", attempt_id).execute()
         return len(result.data or [])
     except Exception:
         return 0
 
 
 def finalize_guided_reading_attempt(attempt_id: str):
-    if supabase is None:
+    if db_supabase is None:
         return
     try:
-        section_result = supabase.table("guided_reading_section_attempts").select("*").eq("attempt_id", attempt_id).execute()
+        section_result = db_supabase.table("guided_reading_section_attempts").select("*").eq("attempt_id", attempt_id).execute()
         rows = section_result.data or []
         if not rows:
             return
@@ -871,7 +956,7 @@ def finalize_guided_reading_attempt(attempt_id: str):
         comp_score = round(((comp_correct + vocab_correct) / total_checks) * 100, 2) if total_checks else 0
         total_score = round((avg_pron * 0.6) + (comp_score * 0.4), 2)
 
-        supabase.table("guided_reading_attempts").update(
+        db_supabase.table("guided_reading_attempts").update(
             {
                 "status": "completed",
                 "completed_at": _utc_now_iso(),
@@ -885,11 +970,11 @@ def finalize_guided_reading_attempt(attempt_id: str):
 
 
 def get_guided_reading_attempt_status(student_id: str, task_id: str):
-    if supabase is None or student_id is None:
+    if db_supabase is None or student_id is None:
         return None
     try:
         result = (
-            supabase.table("guided_reading_attempts")
+            db_supabase.table("guided_reading_attempts")
             .select("*")
             .eq("student_id", student_id)
             .eq("task_id", task_id)
@@ -905,11 +990,11 @@ def get_guided_reading_attempt_status(student_id: str, task_id: str):
 
 
 def get_guided_reading_attempt_overview():
-    if supabase is None:
+    if db_supabase is None:
         return []
     try:
         result = (
-            supabase.table("guided_reading_attempts")
+            db_supabase.table("guided_reading_attempts")
             .select(
                 """
                 id,
@@ -934,11 +1019,11 @@ def get_guided_reading_attempt_overview():
 
 
 def get_guided_reading_attempt_details(attempt_id: str):
-    if supabase is None:
+    if db_supabase is None:
         return []
     try:
         result = (
-            supabase.table("guided_reading_section_attempts")
+            db_supabase.table("guided_reading_section_attempts")
             .select(
                 """
                 id,
@@ -992,12 +1077,12 @@ def get_teacher_access_record(email: str):
     if email_clean in TRUSTED_TEACHERS:
         return dict(TRUSTED_TEACHERS[email_clean])
 
-    if supabase is None:
+    if db_supabase is None:
         return None
 
     try:
         result = (
-            supabase.table("teacher_access")
+            db_supabase.table("teacher_access")
             .select("teacher_name, full_name, email, role, is_active, invite_status")
             .eq("email", email_clean)
             .limit(1)
@@ -1025,12 +1110,12 @@ def get_teacher_display_name(profile: dict | None) -> str:
 
 def is_teacher_name(name: str) -> bool:
     """Legacy name-based authorization retained for compatibility."""
-    if supabase is None or not name:
+    if db_supabase is None or not name:
         return False
 
     try:
         result = (
-            supabase.table("teacher_access")
+            db_supabase.table("teacher_access")
             .select("teacher_name, is_active")
             .eq("teacher_name", name.strip())
             .eq("is_active", True)
@@ -1048,10 +1133,10 @@ def is_teacher_email(email: str) -> bool:
 
 
 def assign_reading_task(teacher_name: str, student_id: str, task_id: str, due_date: str | None = None, notes: str = ""):
-    if supabase is None:
+    if db_supabase is None:
         return False, "Database is not available."
     try:
-        supabase.table("reading_assignments").upsert(
+        db_supabase.table("reading_assignments").upsert(
             {
                 "teacher_name": teacher_name.strip(),
                 "student_id": student_id,
@@ -1068,11 +1153,11 @@ def assign_reading_task(teacher_name: str, student_id: str, task_id: str, due_da
 
 
 def get_assignments_for_student(student_id: str):
-    if supabase is None or not student_id:
+    if db_supabase is None or not student_id:
         return []
     try:
         result = (
-            supabase.table("reading_assignments")
+            db_supabase.table("reading_assignments")
             .select(
                 """
                 id,
@@ -1096,11 +1181,11 @@ def get_assignments_for_student(student_id: str):
 
 
 def get_all_assignments_overview():
-    if supabase is None:
+    if db_supabase is None:
         return []
     try:
         result = (
-            supabase.table("reading_assignments")
+            db_supabase.table("reading_assignments")
             .select(
                 """
                 id,
@@ -1124,19 +1209,19 @@ def get_all_assignments_overview():
 
 
 def mark_assignment_started(student_id: str, task_id: str):
-    if supabase is None:
+    if db_supabase is None:
         return
     try:
-        supabase.table("reading_assignments").update({"status": "started"}).eq("student_id", student_id).eq("task_id", task_id).eq("status", "assigned").execute()
+        db_supabase.table("reading_assignments").update({"status": "started"}).eq("student_id", student_id).eq("task_id", task_id).eq("status", "assigned").execute()
     except Exception:
         pass
 
 
 def mark_assignment_completed(student_id: str, task_id: str):
-    if supabase is None:
+    if db_supabase is None:
         return
     try:
-        supabase.table("reading_assignments").update({"status": "completed"}).eq("student_id", student_id).eq("task_id", task_id).execute()
+        db_supabase.table("reading_assignments").update({"status": "completed"}).eq("student_id", student_id).eq("task_id", task_id).execute()
     except Exception:
         pass
 
@@ -1160,7 +1245,7 @@ def split_text_into_sections(full_text: str, max_sentences_per_section: int = 2)
 
 
 def upload_teacher_audio(file_obj, teacher_name: str):
-    if supabase is None or file_obj is None:
+    if db_supabase is None or file_obj is None:
         return None
     try:
         original_name = getattr(file_obj, "name", "audio_file")
@@ -1172,8 +1257,8 @@ def upload_teacher_audio(file_obj, teacher_name: str):
             return None
 
         content_type = getattr(file_obj, "type", None) or "audio/mpeg"
-        supabase.storage.from_("teacher-audio").upload(file_path, file_bytes, {"content-type": content_type})
-        return supabase.storage.from_("teacher-audio").get_public_url(file_path)
+        db_supabase.storage.from_("teacher-audio").upload(file_path, file_bytes, {"content-type": content_type})
+        return db_supabase.storage.from_("teacher-audio").get_public_url(file_path)
     except Exception:
         return None
 
@@ -1188,10 +1273,10 @@ def create_guided_task(
     audio_url: Optional[str] = None,
     instructions: Optional[str] = None,
 ):
-    if supabase is None:
+    if db_supabase is None:
         return None, "Database is not available."
     try:
-        task_insert = supabase.table("guided_reading_tasks").insert(
+        task_insert = db_supabase.table("guided_reading_tasks").insert(
             {
                 "task_key": f"{source_type}_{uuid.uuid4().hex[:12]}",
                 "title": title.strip(),
@@ -1224,7 +1309,7 @@ def create_guided_task(
                 }
             )
         if rows:
-            supabase.table("guided_reading_sections").insert(rows).execute()
+            db_supabase.table("guided_reading_sections").insert(rows).execute()
         return task_insert.data[0], "Task created successfully."
     except Exception as e:
         return None, str(e)

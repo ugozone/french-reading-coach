@@ -612,6 +612,11 @@ if mode == "Student":
             if st.button("Create / Continue profile"):
                 if not full_name.strip():
                     st.error("Full name is required to save a profile.")
+                elif not email.strip():
+                    st.error(
+                        "Email is required only when you choose to save progress. "
+                        "Guest learning remains available without an email."
+                    )
                 else:
                     student, msg = create_or_get_student(
                         full_name=full_name,
@@ -635,13 +640,23 @@ if mode == "Student":
             lookup_email = st.text_input("Email to find", key="lookup_email")
 
             if st.button("Find my profile"):
-                student = find_student_by_email_or_name(lookup_name, lookup_email)
-                if student:
-                    st.session_state.student_id = student["id"]
-                    st.success("Profile found.")
-                    st.rerun()
+                if not lookup_name.strip() or not lookup_email.strip():
+                    st.error(
+                        "Enter both the full name and email used to create the profile."
+                    )
                 else:
-                    st.error("No matching profile found.")
+                    student = find_student_by_email_or_name(
+                        lookup_name,
+                        lookup_email,
+                    )
+                    if student:
+                        st.session_state.student_id = student["id"]
+                        st.success("Profile found.")
+                        st.rerun()
+                    else:
+                        st.error(
+                            "No profile matched both that full name and email."
+                        )
     else:
         current_student = get_student(st.session_state.student_id)
         if current_student:
