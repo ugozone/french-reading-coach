@@ -146,57 +146,286 @@ def extract_text_from_txt(uploaded_file):
     return uploaded_file.read().decode("utf-8").strip()
 
 
-def starts_with_vowel_or_silent_h(word: str) -> bool:
+
+# ============================================================
+# AUTOMATIC FRENCH LIAISON ENGINE
+# ============================================================
+
+# Common h-muet words: liaison/elision is possible.
+H_MUET_WORDS = {
+    "habitude", "habitudes",
+    "habiter", "habite", "habitent",
+    "harmonie", "heure", "heures",
+    "heureux", "heureuse",
+    "histoire", "histoires",
+    "hiver", "hivers",
+    "homme", "hommes",
+    "honneur", "honneurs",
+    "hôpital", "hôpitaux",
+    "hôtel", "hôtels",
+    "humain", "humaine", "humains", "humaines",
+    "humide",
+    "hélicoptère", "hélicoptères",
+}
+
+# Common h-aspiré words: liaison is blocked.
+H_ASPIRE_WORDS = {
+    "haie", "haies",
+    "haine",
+    "hall", "halls",
+    "hamac", "hamacs",
+    "hamburger", "hamburgers",
+    "hangar", "hangars",
+    "harceler", "harcèlement",
+    "haricot", "haricots",
+    "harpe", "harpes",
+    "hasard",
+    "haut", "haute", "hauts", "hautes",
+    "hauteur",
+    "hérisson", "hérissons",
+    "héros",
+    "hibou", "hiboux",
+    "homard", "homards",
+    "honte",
+    "hublot", "hublots",
+    "hutte", "huttes",
+}
+
+# Words that behave like a disjunction and normally block liaison.
+DISJUNCTION_WORDS = {
+    "huit", "huitième", "huitièmes",
+    "onze", "onzième", "onzièmes",
+}
+
+
+def starts_with_liaison_vowel(word: str) -> bool:
+    """
+    True when a word begins with a vowel sound or known h-muet
+    and can therefore potentially trigger liaison.
+    """
     word = clean_word(word)
+
     if not word:
         return False
-    vowels = "aàâæeéèêëiîïoôœuùûüüyÿh"
-    return word[0] in vowels
+
+    if word in DISJUNCTION_WORDS:
+        return False
+
+    if word in H_ASPIRE_WORDS:
+        return False
+
+    vowels = "aàâäæeéèêëiîïoôöœuùûüüyÿ"
+
+    if word[0] in vowels:
+        return True
+
+    if word.startswith("h"):
+        # Unknown h words are treated conservatively.
+        return word in H_MUET_WORDS
+
+    return False
+
+
+# ------------------------------------------------------------
+# Liaison trigger classes
+# ------------------------------------------------------------
+
+Z_LIAISON_WORDS = {
+    # determiners
+    "les", "des", "mes", "tes", "ses",
+    "nos", "vos", "leurs",
+
+    # pronouns / verbal forms
+    "nous", "vous", "ils", "elles",
+
+    # numerals
+    "deux", "trois", "six", "dix",
+
+    # frequent modifiers / prepositions / adverbs
+    "très", "plus", "moins",
+    "sans", "dans", "chez",
+}
+
+N_LIAISON_WORDS = {
+    "un", "mon", "ton", "son",
+    "on", "bon", "bien", "en",
+}
+
+T_LIAISON_WORDS = {
+    "petit", "tout",
+    "quand",
+    "comment",
+}
+
+# Orthographic d commonly surfaces as liaison /t/.
+D_TO_T_LIAISON_WORDS = {
+    "grand",
+}
+
+# Special mutation in frequent expressions such as neuf ans.
+F_TO_V_LIAISON_WORDS = {
+    "neuf",
+}
+
+
+def liaison_sound_for_word(word: str) -> str:
+    """
+    Determine the normal liaison consonant associated with the
+    first word of a potential liaison pair.
+    """
+    w = clean_word(word)
+
+    if not w:
+        return ""
+
+    if w in Z_LIAISON_WORDS:
+        return "z"
+
+    if w in N_LIAISON_WORDS:
+        return "n"
+
+    if w in T_LIAISON_WORDS:
+        return "t"
+
+    if w in D_TO_T_LIAISON_WORDS:
+        return "t"
+
+    if w in F_TO_V_LIAISON_WORDS:
+        return "v"
+
+    # Productive plural/adjectival endings.
+    if w.endswith(("s", "x", "z")):
+        return "z"
+
+    # Conservative t/d mapping for selected grammatical environments.
+    if w.endswith(("t", "d")):
+        return "t"
+
+    return ""
+
+
+def liaison_type_for_pair(w1: str, w2: str) -> str:
+    """
+    Pedagogical classification of the liaison environment.
+    """
+    a = clean_word(w1)
+    b = clean_word(w2)
+
+    if not a or not b:
+        return "none"
+
+    # Never after coordinating et.
+    if a == "et":
+        return "interdite"
+
+    if b in H_ASPIRE_WORDS or b in DISJUNCTION_WORDS:
+        return "interdite"
+
+    # Determiner/pronoun + vowel-initial word
+    if a in {
+        "les", "des", "mes", "tes", "ses", "nos", "vos", "leurs",
+        "un", "mon", "ton", "son",
+        "nous", "vous", "ils", "elles", "on",
+    }:
+        return "obligatoire"
+
+    # Common numeral contexts
+    if a in {"deux", "trois", "six", "dix"}:
+        return "obligatoire"
+
+    # Prenominal adjective patterns
+    if a in {
+        "petit", "petits",
+        "grand", "grands",
+        "bon", "bons",
+    }:
+        return "obligatoire"
+
+    # Fixed/highly productive interrogative connections
+    if a in {"comment", "quand"}:
+        return "obligatoire"
+
+    # Adverb/preposition contexts are often stylistically variable.
+    if a in {
+        "très", "plus", "moins",
+        "sans", "dans", "chez",
+        "bien", "en",
+    }:
+        return "attendue"
+
+    return "possible"
+
+
+def _strip_ipa(ipa: str) -> str:
+    ipa = str(ipa or "").strip()
+    return ipa.strip("/[] ")
+
+
+def build_connected_ipa(w1: str, w2: str, liaison_sound: str) -> str:
+    """
+    Generate a pedagogical connected IPA representation automatically.
+    """
+    ipa1 = _strip_ipa(get_ipa(w1))
+    ipa2 = _strip_ipa(get_ipa(w2))
+
+    if (
+        not ipa1
+        or not ipa2
+        or ipa1 == "IPA unavailable"
+        or ipa2 == "IPA unavailable"
+    ):
+        return "Connected pronunciation target"
+
+    # Do not duplicate a consonant if phonemizer already supplied it.
+    if liaison_sound and ipa1.endswith(liaison_sound):
+        return f"/{ipa1}‿{ipa2}/"
+
+    if liaison_sound:
+        return f"/{ipa1}.{liaison_sound}‿{ipa2}/"
+
+    return f"/{ipa1}‿{ipa2}/"
+
+
+def liaison_explanation(w1: str, w2: str, sound: str, status: str) -> str:
+    """
+    Generate a learner-friendly explanation for the detected liaison.
+    """
+    if status == "obligatoire":
+        intro = "This is an expected liaison in standard connected French."
+    elif status == "attendue":
+        intro = (
+            "This liaison is common in careful connected speech, "
+            "although usage may vary with speaking style."
+        )
+    else:
+        intro = (
+            "This boundary can permit liaison depending on grammatical "
+            "and stylistic context."
+        )
+
+    return (
+        f"{intro} The normally non-syllabified final consonant of "
+        f"'{w1}' is realized as /{sound}/ and connects to the initial "
+        f"vowel of '{w2}'."
+    )
 
 
 def detect_liaison_candidates(text: str):
+    """
+    Automatically detect French liaison targets in arbitrary text.
+
+    The detector:
+      • finds vowel-initial and h-muet environments;
+      • blocks h-aspiré and disjunction environments;
+      • determines the expected liaison consonant;
+      • classifies the liaison pedagogically;
+      • generates connected IPA automatically.
+    """
+    if not text:
+        return []
+
     words = text.split()
     candidates = []
-
-    obligatory_first_words = {
-        "les", "des", "mes", "tes", "ses", "nos", "vos", "leurs",
-        "nous", "vous", "ils", "elles",
-        "un", "deux", "trois", "six", "dix",
-        "petit", "grand", "bon", "comment",
-    }
-
-    known_connected_ipa = {
-        "comment allez-vous": {
-            "connected_ipa": "/kɔmɑ̃.t‿ale.vu/",
-            "focus_sound": "t‿a",
-            "tip": "Link the final sound of 'comment' smoothly to 'allez-vous'.",
-        },
-        "les amis": {
-            "connected_ipa": "/le.z‿ami/",
-            "focus_sound": "z‿a",
-            "tip": "Pronounce the liaison /z/ between 'les' and 'amis'.",
-        },
-        "nous avons": {
-            "connected_ipa": "/nu.z‿avɔ̃/",
-            "focus_sound": "z‿a",
-            "tip": "Link 'nous' to 'avons' with a clear /z/.",
-        },
-        "ils ont": {
-            "connected_ipa": "/il.z‿ɔ̃/",
-            "focus_sound": "z‿ɔ̃",
-            "tip": "Pronounce the liaison /z/ before 'ont'.",
-        },
-        "huit heures": {
-            "connected_ipa": "/ɥit‿œʁ/",
-            "focus_sound": "t‿œ",
-            "tip": "Make the /t/ connection audible before 'heures'.",
-        },
-        "six heures": {
-            "connected_ipa": "/si.z‿œʁ/",
-            "focus_sound": "z‿œ",
-            "tip": "Pronounce the linking /z/ before 'heures'.",
-        },
-    }
 
     for i in range(len(words) - 1):
         w1 = clean_word(words[i])
@@ -205,45 +434,64 @@ def detect_liaison_candidates(text: str):
         if not w1 or not w2:
             continue
 
-        phrase = f"{w1} {w2}"
-
-        if phrase in known_connected_ipa:
-            candidates.append({
-                "phrase": phrase,
-                "connected_ipa": known_connected_ipa[phrase]["connected_ipa"],
-                "focus_sound": known_connected_ipa[phrase]["focus_sound"],
-                "tip": known_connected_ipa[phrase]["tip"],
-            })
+        # Explicitly show forbidden environments only when pedagogically useful.
+        if w1 == "et":
             continue
 
-        if w1 in obligatory_first_words and starts_with_vowel_or_silent_h(w2):
-            liaison_sound = ""
-            if w1.endswith(("s", "x", "z")):
-                liaison_sound = "z"
-            elif w1.endswith(("t", "d")):
-                liaison_sound = "t"
-            elif w1.endswith("n"):
-                liaison_sound = "n"
-            elif w1.endswith("r"):
-                liaison_sound = "ʁ"
-            elif w1.endswith("p"):
-                liaison_sound = "p"
+        if not starts_with_liaison_vowel(w2):
+            continue
 
-            candidates.append({
-                "phrase": phrase,
-                "connected_ipa": "Connected pronunciation target",
-                "focus_sound": liaison_sound if liaison_sound else "linked boundary",
-                "tip": f"Try to connect '{w1}' smoothly to '{w2}'.",
-            })
+        status = liaison_type_for_pair(w1, w2)
 
-    unique_candidates = []
+        if status == "interdite":
+            continue
+
+        sound = liaison_sound_for_word(w1)
+
+        if not sound:
+            continue
+
+        phrase = f"{w1} {w2}"
+
+        connected_ipa = build_connected_ipa(
+            w1,
+            w2,
+            sound,
+        )
+
+        candidates.append({
+            "phrase": phrase,
+            "connected_ipa": connected_ipa,
+            "focus_sound": f"{sound}‿",
+            "liaison_sound": sound,
+            "liaison_type": status,
+            "explanation": liaison_explanation(
+                w1,
+                w2,
+                sound,
+                status,
+            ),
+            "tip": (
+                f"Say '{w1}' and immediately attach /{sound}/ "
+                f"to the beginning of '{w2}' without inserting a pause."
+            ),
+            "automatic": True,
+        })
+
+    # Remove duplicates.
+    unique = []
     seen = set()
-    for c in candidates:
-        if c["phrase"] not in seen:
-            unique_candidates.append(c)
-            seen.add(c["phrase"])
 
-    return unique_candidates
+    for item in candidates:
+        key = item["phrase"].lower()
+
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+
+    return unique
+
+
 
 
 def generate_coaching_message(score: float, feedback: list, liaison_points: list | None = None) -> str:
