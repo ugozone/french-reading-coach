@@ -200,12 +200,21 @@ def render_teacher_invite_activation() -> bool:
     try:
         token_hash = str(st.query_params.get("token_hash", "") or "").strip()
         invite_type = str(st.query_params.get("type", "") or "").strip().lower()
+        invite_email = str(st.query_params.get("email", "") or "").strip().lower()
     except Exception:
         token_hash = ""
         invite_type = ""
+        invite_email = ""
 
     if not token_hash or invite_type != "invite":
         return False
+
+    if not invite_email:
+        st.sidebar.error(
+            "This invitation is missing the teacher email. "
+            "Please ask the administrator to send a new invitation."
+        )
+        return True
 
     st.sidebar.header("🔐 Activate Teacher Account")
     st.sidebar.success("Teacher invitation detected.")
@@ -243,6 +252,7 @@ def render_teacher_invite_activation() -> bool:
             # Verify the one-time Supabase invitation token.
             supabase.auth.verify_otp(
                 {
+                    "email": invite_email,
                     "token_hash": token_hash,
                     "type": "invite",
                 }
