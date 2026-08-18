@@ -190,6 +190,41 @@ def submit_teacher_access_request(full_name: str, email: str, institution: str =
 
 
 
+
+def get_teacher_access_record_for_auth(email: str):
+    """Look up an approved teacher without importing db.py and causing a circular import."""
+    if not email:
+        return None
+
+    email_clean = email.strip().lower()
+
+    # Built-in administrator account
+    if email_clean == "jamikeugo@gmail.com":
+        return {
+            "teacher_name": "Jamike",
+            "full_name": "Jamike Ugochukwu Okoroji",
+            "email": "jamikeugo@gmail.com",
+            "role": "admin",
+            "is_active": True,
+            "invite_status": "accepted",
+        }
+
+    if supabase is None:
+        return None
+
+    try:
+        result = (
+            supabase.table("teacher_access")
+            .select("teacher_name, full_name, email, role, is_active, invite_status")
+            .eq("email", email_clean)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception:
+        return None
+
+
 def render_teacher_password_setup() -> None:
     """
     Teacher password setup / reset flow.
@@ -326,7 +361,7 @@ def render_teacher_password_setup() -> None:
                 return
 
             # Only approved teachers should receive teacher password setup
-            teacher_record = get_teacher_access_record(clean_email)
+            teacher_record = get_teacher_access_record_for_auth(clean_email)
 
             if not teacher_record or not teacher_record.get("is_active"):
                 st.error(
