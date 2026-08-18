@@ -446,24 +446,63 @@ def create_or_get_student(
                 "Enter the same full name used when the profile was created.",
             )
 
-        result = (
-            db_supabase.table("students")
-            .insert(
-                {
-                    "full_name": full_name_clean,
-                    "email": email_clean,
-                    "phone": (phone or "").strip() or None,
-                    "level": (level or "").strip() or None,
-                    "class_name": (class_name or "").strip() or None,
-                    "teacher_name": (teacher_name or "").strip() or None,
-                    "notes": (notes or "").strip() or None,
-                }
+        new_student = {
+            "full_name": full_name_clean,
+            "email": email_clean,
+            "phone": (phone or "").strip() or None,
+            "level": (level or "").strip() or None,
+            "class_name": (class_name or "").strip() or None,
+            "teacher_name": (teacher_name or "").strip() or None,
+            "notes": (notes or "").strip() or None,
+        }
+
+        try:
+            result = (
+                db_supabase.table("students")
+                .insert(new_student)
+                .select("*")
+                .execute()
             )
+
+            if result.data:
+                return (
+                    result.data[0],
+                    "Profile created. Progress saving is now active.",
+                )
+
+        except Exception as insert_exc:
+            # The insert may have succeeded even if the client failed
+            # to return the inserted representation.
+            verify = (
+                db_supabase.table("students")
+                .select("*")
+                .eq("email", email_clean)
+                .limit(1)
+                .execute()
+            )
+
+            if verify.data:
+                return (
+                    verify.data[0],
+                    "Profile created. Progress saving is now active.",
+                )
+
+            raise insert_exc
+
+        # Final verification if insert succeeded but returned no row.
+        verify = (
+            db_supabase.table("students")
+            .select("*")
+            .eq("email", email_clean)
+            .limit(1)
             .execute()
         )
 
-        if result.data:
-            return result.data[0], "Profile created. Progress saving is now active."
+        if verify.data:
+            return (
+                verify.data[0],
+                "Profile created. Progress saving is now active.",
+            )
 
     except Exception as exc:
         return None, str(exc)
