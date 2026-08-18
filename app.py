@@ -1221,46 +1221,53 @@ with tab3:
                 comprehension_response = st.text_input(current_section["comprehension_question"], key=f"guided_comp_{current_section['id']}")
                 vocab_response = st.text_input(current_section["vocab_question"], key=f"guided_vocab_{current_section['id']}")
 
-                if st.button("✅ Submit section", key=f"submit_section_{current_section['id']}"):
+                if st.button(
+                    "✅ Analyze, save & continue",
+                    key=f"submit_section_{current_section['id']}",
+                ):
                     recognized_text = ""
                     pron_score = 0.0
                     coaching_message = "No audio submitted."
 
                     if section_audio is not None:
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_wav:
+                        with tempfile.NamedTemporaryFile(
+                            delete=False,
+                            suffix=".wav",
+                        ) as tmp_wav:
                             tmp_wav.write(section_audio.read())
                             wav_path = tmp_wav.name
 
                         recognized_text = transcribe_audio_file(wav_path)
-                        pron_score = pronunciation_score(current_section["section_text"], recognized_text)
-                        feedback = word_feedback(current_section["section_text"], recognized_text)
-                        coaching_message = generate_coaching_message(pron_score, feedback, [])
+                        pron_score = pronunciation_score(
+                            current_section["section_text"],
+                            recognized_text,
+                        )
+                        feedback = word_feedback(
+                            current_section["section_text"],
+                            recognized_text,
+                        )
+                        coaching_message = generate_coaching_message(
+                            pron_score,
+                            feedback,
+                            [],
+                        )
 
-                        st.write(f"**Recognized text:** {recognized_text}")
-                        st.write(f"**Pronunciation score:** {pron_score}/100")
-                        render_coaching_message(coaching_message)
-                        st.markdown(render_colored_feedback_with_ipa(feedback), unsafe_allow_html=True)
-
-                    comp_correct = normalize_simple(comprehension_response) == normalize_simple(current_section["comprehension_answer"])
-                    vocab_correct = normalize_simple(vocab_response) == normalize_simple(current_section["vocab_answer"])
-
-                    log_research_event(
-                        "guided_section_submitted",
-                        "guided_reading",
-                        {
-                            "cefr_level": guided_level,
-                            "task_id": str(task_id),
-                            "section_id": str(current_section["id"]),
-                            "section_order": int(current_section.get("section_order", current_index + 1)),
-                            "pronunciation_score": float(pron_score),
-                            "audio_submitted": bool(section_audio is not None),
-                            "comprehension_correct": bool(comp_correct),
-                            "vocabulary_correct": bool(vocab_correct),
-                        },
+                    comp_correct = (
+                        normalize_simple(comprehension_response)
+                        == normalize_simple(
+                            current_section["comprehension_answer"]
+                        )
                     )
 
-                    if attempt:
-                        save_guided_section_attempt(
+                    vocab_correct = (
+                        normalize_simple(vocab_response)
+                        == normalize_simple(
+                            current_section["vocab_answer"]
+                        )
+                    )
+
+                    if student_id is not None and attempt:
+                        saved_ok, saved_message = save_guided_section_attempt(
                             attempt_id=attempt["id"],
                             section_id=current_section["id"],
                             recognized_text=recognized_text,
@@ -1272,7 +1279,48 @@ with tab3:
                             coaching_message=coaching_message,
                         )
 
-                if st.button("➡ Next section", key=f"next_guided_{current_section['id']}"):
+                        if not saved_ok:
+                            st.error(
+                                "This section could not be saved. "
+                                + str(saved_message)
+                            )
+                            st.stop()
+
+                    st.write(f"**Recognized text:** {recognized_text}")
+                    st.write(
+                        f"**Pronunciation score:** {pron_score}/100"
+                    )
+                    render_coaching_message(coaching_message)
+
+                    if section_audio is not None:
+                        st.markdown(
+                            render_colored_feedback_with_ipa(feedback),
+                            unsafe_allow_html=True,
+                        )
+
+                    log_research_event(
+                        "guided_section_submitted",
+                        "guided_reading",
+                        {
+                            "cefr_level": guided_level,
+                            "task_id": str(task_id),
+                            "section_id": str(current_section["id"]),
+                            "section_order": int(
+                                current_section.get(
+                                    "section_order",
+                                    current_index + 1,
+                                )
+                            ),
+                            "pronunciation_score": float(pron_score),
+                            "audio_submitted": bool(
+                                section_audio is not None
+                            ),
+                            "comprehension_correct": bool(comp_correct),
+                            "vocabulary_correct": bool(vocab_correct),
+                        },
+                    )
+
+                    # Automatically advance only AFTER a successful save.
                     st.session_state.guided_section_index = current_index + 1
                     st.rerun()
 

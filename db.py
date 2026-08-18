@@ -947,9 +947,9 @@ def save_guided_section_attempt(
     coaching_message: str,
 ):
     if db_supabase is None:
-        return
+        return False, "Database is not configured."
+
     try:
-        existing = db_supabase.table("guided_reading_section_attempts").select("id").eq("attempt_id", attempt_id).eq("section_id", section_id).limit(1).execute()
         payload = {
             "attempt_id": attempt_id,
             "section_id": section_id,
@@ -961,12 +961,47 @@ def save_guided_section_attempt(
             "vocab_correct": vocab_correct,
             "coaching_message": coaching_message,
         }
+
+        existing = (
+            db_supabase.table("guided_reading_section_attempts")
+            .select("id")
+            .eq("attempt_id", attempt_id)
+            .eq("section_id", section_id)
+            .limit(1)
+            .execute()
+        )
+
         if existing.data:
-            db_supabase.table("guided_reading_section_attempts").update(payload).eq("id", existing.data[0]["id"]).execute()
+            (
+                db_supabase.table("guided_reading_section_attempts")
+                .update(payload)
+                .eq("id", existing.data[0]["id"])
+                .execute()
+            )
         else:
-            db_supabase.table("guided_reading_section_attempts").insert(payload).execute()
-    except Exception:
-        pass
+            (
+                db_supabase.table("guided_reading_section_attempts")
+                .insert(payload)
+                .execute()
+            )
+
+        verify = (
+            db_supabase.table("guided_reading_section_attempts")
+            .select("id")
+            .eq("attempt_id", attempt_id)
+            .eq("section_id", section_id)
+            .limit(1)
+            .execute()
+        )
+
+        if verify.data:
+            return True, "Section saved."
+
+        return False, "The database did not confirm the saved section."
+
+    except Exception as exc:
+        return False, str(exc)
+
 
 
 def get_guided_completed_section_count(attempt_id: str) -> int:
