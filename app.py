@@ -418,6 +418,99 @@ def card(title: str, body: str) -> None:
     )
 
 
+
+def build_pronunciation_targets(text: str, lesson_data=None):
+    """
+    Combine automatic connected-speech detection with the curated
+    liaison_targets defined in teacher_texts.py.
+    """
+    automatic = detect_liaison_candidates(text) or []
+    merged = {}
+
+    # Automatic targets
+    for item in automatic:
+        point = dict(item)
+        phrase = str(point.get("phrase", "") or "").strip()
+
+        if not phrase:
+            continue
+
+        focus = point.get("focus_sound", "linked boundary")
+
+        point["explanation"] = (
+            "In connected French speech, these words belong together "
+            "without an unnecessary pause. The important phonetic "
+            f"connection at this boundary is {focus}."
+        )
+
+        merged[phrase.lower()] = point
+
+    # Teacher-curated targets
+    if lesson_data:
+        for phrase in lesson_data.get("liaison_targets", []) or []:
+            phrase = str(phrase).strip()
+
+            if not phrase:
+                continue
+
+            key = phrase.lower()
+
+            if key in merged:
+                merged[key]["explanation"] = (
+                    merged[key].get("explanation", "")
+                    + " This phrase is specifically selected in this lesson "
+                      "as a pronunciation target."
+                )
+                merged[key]["curated"] = True
+                continue
+
+            ipa = phonetic_transcription(phrase)
+
+            connected_ipa = (
+                f"/{ipa}/"
+                if ipa and ipa != "IPA unavailable"
+                else "IPA unavailable"
+            )
+
+            merged[key] = {
+                "phrase": phrase,
+                "connected_ipa": connected_ipa,
+                "focus_sound": "connected-speech boundary",
+                "tip": (
+                    f"Say '{phrase}' slowly first. Then repeat it naturally "
+                    "without inserting a pause between the target words."
+                ),
+                "explanation": (
+                    "This is a teacher-selected connected-speech target. "
+                    "Practice the words as one rhythmic unit and pay attention "
+                    "to how the final sound of the first word connects with "
+                    "the beginning of the following word."
+                ),
+                "curated": True,
+            }
+
+    return list(merged.values())
+
+
+def render_target_phonetic_transcription(text: str):
+    """Display broad canonical IPA before the learner records."""
+    if not text or not text.strip():
+        return
+
+    ipa = phonetic_transcription(text)
+
+    st.markdown("### 🔤 Target phonetic transcription")
+
+    if ipa and ipa != "IPA unavailable":
+        st.code(f"/{ipa}/", language=None)
+        st.caption(
+            "Broad canonical French IPA for the target text. "
+            "Use it as a pronunciation guide before recording."
+        )
+    else:
+        st.warning("IPA transcription is temporarily unavailable.")
+
+
 def play_tts_audio_safe(text: str, lang: str = "fr", key_prefix: str = "tts") -> None:
     if not text or not text.strip():
         st.error("No text available for audio.")
@@ -614,6 +707,7 @@ else:
 with tab1:
     section_header("🎤 Pronunciation Practice", "Upload text, listen, record, and receive structured feedback.")
     current_lesson_id = None
+    selected_text_data = None
     input_mode = st.radio("Choose text source:", ["My Text", "Teacher Texts"], key="input_mode")
 
     if input_mode == "My Text":
@@ -670,16 +764,31 @@ with tab1:
         )
         st.session_state.reference_text = reference_text
 
-        auto_liaison_points = detect_liaison_candidates(reference_text)
+
+    # Full IPA before recording
+    render_target_phonetic_transcription(reference_text)
+
+    # Connected-speech / liaison targets
+    pronunciation_targets = build_pronunciation_targets(
+        reference_text,
+        selected_text_data,
+    )
+
+    if pronunciation_targets:
         render_pronunciation_focus(
             text=reference_text,
-            liaison_points=auto_liaison_points,
+            liaison_points=pronunciation_targets,
             context="preview",
             current_user_id=student_id,
             current_lesson_id=current_lesson_id,
-            phrase_history_key="unused",
+            phrase_history_key="pronunciation_phrase_history",
             max_phrase_attempts=MAX_PHRASE_ATTEMPTS,
             enable_phrase_recording=False,
+        )
+    else:
+        st.caption(
+            "No specific liaison or connected-speech target was identified "
+            "for this text."
         )
 
     if st.button("🔊 Listen to pronunciation", key="listen_main"):
@@ -724,7 +833,10 @@ with tab1:
             score = pronunciation_score(reference_text, transcript)
             feedback = word_feedback(reference_text, transcript)
             attempt_issue = detect_attempt_issue(reference_text, transcript, feedback)
-            liaison_points = detect_liaison_candidates(reference_text) if input_mode == "Teacher Texts" else []
+            liaison_points = build_pronunciation_targets(
+                reference_text,
+                selected_text_data,
+            )
             coaching_message = generate_coaching_message(score, feedback, liaison_points)
 
             attempt = {
@@ -757,14 +869,14 @@ with tab1:
             st.warning(attempt_issue)
             render_coaching_message(coaching_message)
 
-            if input_mode == "Teacher Texts":
+            if liaison_points:
                 render_pronunciation_focus(
                     text=reference_text,
                     liaison_points=liaison_points,
                     context=analyze_key,
                     current_user_id=student_id,
                     current_lesson_id=current_lesson_id,
-                    phrase_history_key="unused",
+                    phrase_history_key="pronunciation_phrase_history",
                     max_phrase_attempts=MAX_PHRASE_ATTEMPTS,
                     enable_phrase_recording=True,
                 )

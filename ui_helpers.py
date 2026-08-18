@@ -292,8 +292,18 @@ def render_pronunciation_focus(
                     <div style="margin-bottom: 6px;">
                         🎯 <strong>Focus:</strong> {html.escape(point["focus_sound"])}
                     </div>
+                    <div style="margin-bottom: 8px;">
+                        📘 <strong>Phonetic explanation:</strong>
+                        {html.escape(
+                            point.get(
+                                "explanation",
+                                "Keep these words connected as one smooth rhythmic group."
+                            )
+                        )}
+                    </div>
                     <div style="margin-bottom: 10px;">
-                        💡 <strong>Tip:</strong> {html.escape(point["tip"])}
+                        💡 <strong>How to produce it:</strong>
+                        {html.escape(point["tip"])}
                     </div>
                 </div>
                 """,
