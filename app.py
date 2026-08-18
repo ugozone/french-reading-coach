@@ -306,6 +306,71 @@ section[data-testid="stSidebar"] [data-testid="stRadio"] {
 
 /* END SIDEBAR ACCESS THEME */
 
+
+/* BEGIN TEACHER ACTIVATION THEME */
+
+/* Teacher activation form container */
+section[data-testid="stSidebar"] form {
+    background: linear-gradient(
+        145deg,
+        rgba(91, 57, 31, 0.96),
+        rgba(55, 32, 18, 0.98)
+    ) !important;
+    border: 1px solid rgba(212, 160, 23, 0.40) !important;
+    border-radius: 16px !important;
+    padding: 16px !important;
+}
+
+/* Password input outer containers */
+section[data-testid="stSidebar"] [data-testid="stTextInput"] > div > div {
+    background: #efe1ca !important;
+    border-radius: 12px !important;
+}
+
+/* Actual password inputs */
+section[data-testid="stSidebar"] [data-testid="stTextInput"] input {
+    background: #efe1ca !important;
+    color: #2b1a10 !important;
+    -webkit-text-fill-color: #2b1a10 !important;
+    border: 1px solid #d4a017 !important;
+    border-radius: 12px !important;
+}
+
+/* Password field labels */
+section[data-testid="stSidebar"] [data-testid="stTextInput"] label,
+section[data-testid="stSidebar"] [data-testid="stTextInput"] label p {
+    color: #f8e7cd !important;
+    font-weight: 600 !important;
+}
+
+/* Password reveal icon */
+section[data-testid="stSidebar"] [data-testid="stTextInput"] button {
+    color: #6d4b27 !important;
+    background: transparent !important;
+}
+
+/* Activate Teacher Account button */
+section[data-testid="stSidebar"] form .stButton > button,
+section[data-testid="stSidebar"] form button[kind="secondaryFormSubmit"] {
+    background: linear-gradient(
+        90deg,
+        #9b672f 0%,
+        #d4a017 100%
+    ) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 220, 130, 0.35) !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    min-height: 46px !important;
+}
+
+/* Error box */
+section[data-testid="stSidebar"] [data-testid="stAlert"] {
+    border-radius: 14px !important;
+}
+
+/* END TEACHER ACTIVATION THEME */
+
 </style>
 """, unsafe_allow_html=True)
 
