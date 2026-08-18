@@ -1,7 +1,9 @@
 import os
 import re
+import smtplib
 import uuid
 from datetime import datetime, timezone
+from email.message import EmailMessage
 from typing import Optional
 
 from supabase import create_client
@@ -1492,24 +1494,240 @@ def is_teacher_email(email: str) -> bool:
     return get_teacher_profile_by_email(email) is not None
 
 
-def assign_reading_task(teacher_name: str, student_id: str, task_id: str, due_date: str | None = None, notes: str = ""):
+
+def _as_bool_db(value: str, default: bool = False) -> bool:
+    if value is None or str(value).strip() == "":
+        return default
+    return str(value).strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
+
+def send_assignment_notification_email(
+    student_email: str,
+    student_name: str,
+    task_title: str,
+    teacher_name: str,
+    due_date: str | None = None,
+    notes: str = "",
+):
+    """
+    Notify a student by email after a reading task is assigned.
+    Uses the same server-side SMTP secrets already configured
+    for the French Reading Coach.
+    """
+    student_email = (student_email or "").strip().lower()
+
+    if not student_email:
+        return False, "Student has no email address."
+
+    smtp_host = get_secret("SMTP_HOST", "")
+    smtp_port_raw = get_secret("SMTP_PORT", "587")
+    smtp_username = get_secret("SMTP_USERNAME", "")
+    smtp_password = get_secret("SMTP_PASSWORD", "")
+    smtp_from_email = get_secret(
+        "SMTP_FROM_EMAIL",
+        smtp_username,
+    )
+    smtp_from_name = get_secret(
+        "SMTP_FROM_NAME",
+        "French Reading Coach",
+    )
+    smtp_use_ssl = _as_bool_db(
+        get_secret("SMTP_USE_SSL", "false"),
+        False,
+    )
+    smtp_use_starttls = _as_bool_db(
+        get_secret("SMTP_USE_STARTTLS", "true"),
+        True,
+    )
+
+    if not all([
+        smtp_host,
+        smtp_username,
+        smtp_password,
+        smtp_from_email,
+    ]):
+        return False, "Student email notification is not configured."
+
+    try:
+        smtp_port = int(smtp_port_raw)
+    except Exception:
+        smtp_port = 465 if smtp_use_ssl else 587
+
+    app_url = (
+        "https://french-reading-coach-omsbhfj4sefvrh9nn25zff."
+        "streamlit.app/"
+    )
+
+    mail = EmailMessage()
+
+    mail["Subject"] = f"New French Reading Coach assignment: {task_title}"
+    mail["From"] = f"{smtp_from_name} <{smtp_from_email}>"
+    mail["To"] = student_email
+
+    due_text = due_date or "No specific due date"
+
+    mail.set_content(
+        f"Hello {student_name or 'Student'},\n\n"
+        f"{teacher_name} has assigned you a new activity "
+        f"in the French Reading Coach.\n\n"
+        f"Task: {task_title}\n"
+        f"Due date: {due_text}\n"
+        f"Teacher notes: {notes or 'None'}\n\n"
+        f"Open the French Reading Coach here:\n"
+        f"{app_url}\n\n"
+        "Choose Student, load your saved student profile, "
+        "and open your assigned task.\n\n"
+        "Your progress and score will be saved automatically "
+        "when you complete the activity.\n"
+    )
+
+    try:
+        if smtp_use_ssl:
+            with smtplib.SMTP_SSL(
+                smtp_host,
+                smtp_port,
+                timeout=20,
+            ) as server:
+                server.login(
+                    smtp_username,
+                    smtp_password,
+                )
+                server.send_message(mail)
+        else:
+            with smtplib.SMTP(
+                smtp_host,
+                smtp_port,
+                timeout=20,
+            ) as server:
+                server.ehlo()
+
+                if smtp_use_starttls:
+                    server.starttls()
+                    server.ehlo()
+
+                server.login(
+                    smtp_username,
+                    smtp_password,
+                )
+                server.send_message(mail)
+
+        return True, "Student email sent."
+
+    except Exception as exc:
+        return False, str(exc)
+
+
+def assign_reading_task(
+    teacher_name: str,
+    student_id: str,
+    task_id: str,
+    due_date: str | None = None,
+    notes: str = "",
+):
     if db_supabase is None:
         return False, "Database is not available."
+
     try:
-        db_supabase.table("reading_assignments").upsert(
-            {
-                "teacher_name": teacher_name.strip(),
-                "student_id": student_id,
-                "task_id": task_id,
-                "due_date": due_date if due_date else None,
-                "notes": notes.strip() or None,
-                "status": "assigned",
-            },
-            on_conflict="student_id,task_id",
-        ).execute()
-        return True, "Assignment created successfully."
+        payload = {
+            "teacher_name": teacher_name.strip(),
+            "student_id": student_id,
+            "task_id": task_id,
+            "due_date": due_date if due_date else None,
+            "notes": notes.strip() or None,
+            "status": "assigned",
+        }
+
+        existing = (
+            db_supabase.table("reading_assignments")
+            .select("id")
+            .eq("student_id", student_id)
+            .eq("task_id", task_id)
+            .limit(1)
+            .execute()
+        )
+
+        if existing.data:
+            (
+                db_supabase.table("reading_assignments")
+                .update(payload)
+                .eq("id", existing.data[0]["id"])
+                .execute()
+            )
+        else:
+            (
+                db_supabase.table("reading_assignments")
+                .insert(payload)
+                .execute()
+            )
+
+        verify = (
+            db_supabase.table("reading_assignments")
+            .select("id")
+            .eq("student_id", student_id)
+            .eq("task_id", task_id)
+            .limit(1)
+            .execute()
+        )
+
+        if not verify.data:
+            return False, "Assignment was not confirmed by the database."
+
+        # Fetch student contact.
+        student_result = (
+            db_supabase.table("students")
+            .select("full_name,email")
+            .eq("id", student_id)
+            .limit(1)
+            .execute()
+        )
+
+        # Fetch task title.
+        task_result = (
+            db_supabase.table("guided_reading_tasks")
+            .select("title")
+            .eq("id", task_id)
+            .limit(1)
+            .execute()
+        )
+
+        student = (
+            student_result.data[0]
+            if student_result.data
+            else {}
+        )
+
+        task = (
+            task_result.data[0]
+            if task_result.data
+            else {}
+        )
+
+        email_ok, email_msg = send_assignment_notification_email(
+            student_email=student.get("email", ""),
+            student_name=student.get("full_name", ""),
+            task_title=task.get("title", "French Reading activity"),
+            teacher_name=teacher_name,
+            due_date=due_date,
+            notes=notes,
+        )
+
+        if email_ok:
+            return (
+                True,
+                "Assignment created successfully and student email sent.",
+            )
+
+        return (
+            True,
+            "Assignment created successfully, but the student email "
+            f"could not be sent: {email_msg}",
+        )
+
     except Exception as e:
         return False, str(e)
+
 
 
 def get_assignments_for_student(student_id: str):
