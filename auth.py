@@ -188,131 +188,115 @@ def submit_teacher_access_request(full_name: str, email: str, institution: str =
 
 
 
-def render_teacher_invite_activation() -> bool:
+def render_teacher_invite_activation() -> None:
     """
-    Handle a Supabase teacher invitation using token_hash in the URL.
+    Activate an invited teacher using the email invitation code.
 
-    Expected URL:
-    ?token_hash=...&type=invite
-
-    Returns True while the invitation activation interface is being shown.
+    This avoids one-time clickable authentication links, which can be
+    consumed by email security scanners before the teacher clicks them.
     """
-    try:
-        token_hash = str(st.query_params.get("token_hash", "") or "").strip()
-        invite_type = str(st.query_params.get("type", "") or "").strip().lower()
-        invite_email = str(st.query_params.get("email", "") or "").strip().lower()
-    except Exception:
-        token_hash = ""
-        invite_type = ""
-        invite_email = ""
-
-    if not token_hash or invite_type != "invite":
-        return False
-
-    if not invite_email:
-        st.sidebar.error(
-            "This invitation is missing the teacher email. "
-            "Please ask the administrator to send a new invitation."
+    with st.sidebar.expander("Activate Teacher Invitation", expanded=False):
+        st.caption(
+            "Already received a teacher invitation? Enter the email address "
+            "and invitation code from the email, then choose your password."
         )
-        return True
 
-    st.sidebar.header("🔐 Activate Teacher Account")
-    st.sidebar.success("Teacher invitation detected.")
-    st.sidebar.caption(
-        "Create your password below. After activation, use the normal Teacher sign in panel."
-    )
+        invite_email = st.text_input(
+            "Invited teacher email",
+            key="teacher_activation_email",
+        )
 
-    with st.sidebar.form("teacher_invite_activation_form"):
+        invite_code = st.text_input(
+            "Invitation code",
+            key="teacher_activation_code",
+            placeholder="Enter the code from your email",
+        )
+
         new_password = st.text_input(
             "Create password",
             type="password",
-            key="teacher_invite_password",
+            key="teacher_activation_password",
         )
+
         confirm_password = st.text_input(
             "Confirm password",
             type="password",
-            key="teacher_invite_password_confirm",
+            key="teacher_activation_password_confirm",
         )
-        activate = st.form_submit_button("Activate Teacher Account")
 
-    if activate:
+        activate = st.button(
+            "Activate Teacher Account",
+            key="teacher_activation_submit",
+        )
+
+        if not activate:
+            return
+
         if supabase is None:
-            st.sidebar.error("Supabase authentication is not configured.")
-            return True
+            st.error("Supabase authentication is not configured.")
+            return
+
+        email_clean = (invite_email or "").strip().lower()
+        code_clean = (invite_code or "").strip().replace(" ", "")
+
+        if not email_clean:
+            st.error("Enter the email address that received the invitation.")
+            return
+
+        if not code_clean:
+            st.error("Enter the invitation code from the email.")
+            return
 
         if len(new_password or "") < 8:
-            st.sidebar.error("Password must contain at least 8 characters.")
-            return True
+            st.error("Password must contain at least 8 characters.")
+            return
 
         if new_password != confirm_password:
-            st.sidebar.error("The two passwords do not match.")
-            return True
+            st.error("The two passwords do not match.")
+            return
 
         try:
-            # Verify the one-time Supabase invitation token.
+            # Verify the invitation code. Successful verification creates
+            # an authenticated session for the invited user.
             supabase.auth.verify_otp(
                 {
-                    "email": invite_email,
-                    "token_hash": token_hash,
+                    "email": email_clean,
+                    "token": code_clean,
                     "type": "invite",
                 }
             )
 
-            # The verified invitation creates an authenticated session,
-            # allowing the invited user to choose a password.
+            # Set the teacher's chosen password while the invite session
+            # is authenticated.
             supabase.auth.update_user(
                 {
                     "password": new_password,
                 }
             )
 
-            user = get_current_user()
-            activated_email = (
-                getattr(user, "email", "")
-                if user is not None
-                else ""
-            )
-
-            # Require a fresh normal login after activation.
             try:
                 supabase.auth.sign_out()
             except Exception:
                 pass
 
             st.session_state["teacher_activation_message"] = (
-                f"Teacher account activated"
-                + (f" for {activated_email}" if activated_email else "")
-                + ". You can now sign in with your new password."
+                "Teacher account activated successfully. "
+                "You can now sign in with your email and new password."
             )
-
-            # Remove the one-time token from the browser URL.
-            try:
-                st.query_params.clear()
-            except Exception:
-                pass
 
             st.rerun()
 
         except Exception as exc:
-            error_text = str(exc).lower()
+            # Temporarily show enough detail to diagnose activation problems.
+            error_text = str(exc)
 
-            if (
-                "expired" in error_text
-                or "invalid" in error_text
-                or "otp" in error_text
-                or "token" in error_text
-            ):
-                st.sidebar.error(
-                    "This invitation link is invalid or has expired. "
-                    "Ask the administrator to send a new invitation."
-                )
-            else:
-                st.sidebar.error(
-                    "Teacher account activation could not be completed. "
-                    "Please request a new invitation or contact the administrator."
-                )
+            st.error(
+                "Teacher activation failed. Make sure you are using the "
+                "newest invitation email and the correct code."
+            )
 
-    return True
+            st.caption(f"Supabase response: {error_text}")
+
 
 
 def render_auth_sidebar() -> None:
@@ -325,10 +309,9 @@ def render_auth_sidebar() -> None:
     if activation_message:
         st.sidebar.success(activation_message)
 
-    if render_teacher_invite_activation():
-        return
-
     st.sidebar.header("👤 Account")
+
+    render_teacher_invite_activation()
 
     current_user = get_current_user()
 
