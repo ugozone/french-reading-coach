@@ -370,17 +370,7 @@ def render_teacher_password_setup() -> None:
                 return
 
             try:
-                redirect_url = (
-                    "https://french-reading-coach-omsbhfj4sefvrh9nn25zff."
-                    "streamlit.app/"
-                )
-
-                supabase.auth.reset_password_for_email(
-                    clean_email,
-                    {
-                        "redirect_to": redirect_url
-                    }
-                )
+                supabase.auth.reset_password_for_email(clean_email)
 
                 st.success(
                     "Password setup email sent. "
