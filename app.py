@@ -1678,67 +1678,483 @@ with tab4:
             "No saved learning activity has been recorded yet."
         )
 
+    # =====================================================
+    # GUIDED READING PROGRESS & FEEDBACK
+    # =====================================================
+    st.markdown("---")
+    section_header(
+        "📚 Guided Reading Progress & Feedback",
+        "Review your Guided Reading attempts, section scores, answers, and coaching.",
+    )
+
+    student_guided_attempts = []
+
+    if student_id is not None:
+        try:
+            guided_overview = get_guided_reading_attempt_overview()
+
+            student_guided_attempts = [
+                attempt
+                for attempt in guided_overview
+                if str(attempt.get("student_id")) == str(student_id)
+            ]
+        except Exception:
+            student_guided_attempts = []
+
+    if student_guided_attempts:
+        for attempt_number, attempt in enumerate(
+            student_guided_attempts,
+            start=1,
+        ):
+            task_info = attempt.get("guided_reading_tasks") or {}
+            task_title = task_info.get("title") or "Guided Reading"
+
+            status = attempt.get("status") or "in_progress"
+
+            status_label = (
+                "✅ Completed"
+                if status == "completed"
+                else "⏳ In Progress"
+            )
+
+            attempt_details = get_guided_reading_attempt_details(
+                attempt["id"]
+            )
+
+            try:
+                total_sections = len(
+                    get_guided_reading_sections(
+                        attempt.get("task_id")
+                    )
+                )
+            except Exception:
+                total_sections = 0
+
+            completed_sections = len(attempt_details)
+
+            expander_title = (
+                f"{task_title} — {status_label} "
+                f"— {completed_sections}/{total_sections or '?'} sections"
+            )
+
+            with st.expander(
+                expander_title,
+                expanded=(
+                    attempt_number == 1
+                    and status != "completed"
+                ),
+            ):
+                p1, p2, p3, p4 = st.columns(4)
+
+                p1.metric(
+                    "Sections",
+                    (
+                        f"{completed_sections}/{total_sections}"
+                        if total_sections
+                        else str(completed_sections)
+                    ),
+                )
+
+                p2.metric(
+                    "Pronunciation",
+                    (
+                        f"{float(attempt.get('overall_pronunciation_score')):.1f}/100"
+                        if (
+                            status == "completed"
+                            and attempt.get(
+                                "overall_pronunciation_score"
+                            ) is not None
+                        )
+                        else "—"
+                    ),
+                )
+
+                p3.metric(
+                    "Comprehension",
+                    (
+                        f"{float(attempt.get('comprehension_score')):.1f}/100"
+                        if (
+                            status == "completed"
+                            and attempt.get(
+                                "comprehension_score"
+                            ) is not None
+                        )
+                        else "—"
+                    ),
+                )
+
+                p4.metric(
+                    "Total Score",
+                    (
+                        f"{float(attempt.get('total_score')):.1f}/100"
+                        if (
+                            status == "completed"
+                            and attempt.get("total_score") is not None
+                        )
+                        else "—"
+                    ),
+                )
+
+                if status != "completed":
+                    st.info(
+                        "This reading is still in progress. "
+                        "Your section-level work below is already saved. "
+                        "Overall scores appear after all sections are completed."
+                    )
+
+                if attempt_details:
+                    st.markdown("#### Section-by-section learning record")
+
+                    for detail in attempt_details:
+                        section = (
+                            detail.get("guided_reading_sections")
+                            or {}
+                        )
+
+                        section_order = section.get(
+                            "section_order",
+                            "?",
+                        )
+
+                        section_text = section.get(
+                            "section_text",
+                            "",
+                        )
+
+                        pron_score = detail.get(
+                            "pronunciation_score"
+                        )
+
+                        section_label = (
+                            f"Section {section_order}"
+                            + (
+                                f" — Pronunciation: "
+                                f"{float(pron_score):.1f}/100"
+                                if pron_score is not None
+                                else ""
+                            )
+                        )
+
+                        with st.expander(section_label):
+                            if section_text:
+                                st.write(
+                                    f"**Target text:** {section_text}"
+                                )
+
+                            st.write(
+                                "**What the app recognized:** "
+                                + (
+                                    detail.get("recognized_text")
+                                    or "No speech recognized."
+                                )
+                            )
+
+                            if pron_score is not None:
+                                st.metric(
+                                    "Pronunciation score",
+                                    f"{float(pron_score):.1f}/100",
+                                )
+
+                            coaching = detail.get(
+                                "coaching_message"
+                            )
+
+                            if coaching:
+                                st.markdown(
+                                    "##### 💡 Pronunciation coaching"
+                                )
+                                render_coaching_message(
+                                    coaching
+                                )
+
+                            st.markdown(
+                                "##### 🧠 Comprehension"
+                            )
+
+                            comp_question = section.get(
+                                "comprehension_question",
+                                "",
+                            )
+                            comp_answer = section.get(
+                                "comprehension_answer",
+                                "",
+                            )
+                            comp_response = detail.get(
+                                "comprehension_response"
+                            ) or "No answer"
+                            comp_correct = bool(
+                                detail.get(
+                                    "comprehension_correct"
+                                )
+                            )
+
+                            if comp_question:
+                                st.write(
+                                    f"**Question:** {comp_question}"
+                                )
+
+                            st.write(
+                                f"**Your answer:** {comp_response}"
+                            )
+
+                            if comp_correct:
+                                st.success("✅ Correct")
+                            else:
+                                st.error("❌ Needs review")
+                                if comp_answer:
+                                    st.write(
+                                        f"**Correct answer:** "
+                                        f"{comp_answer}"
+                                    )
+
+                            st.markdown(
+                                "##### 🧩 Vocabulary"
+                            )
+
+                            vocab_question = section.get(
+                                "vocab_question",
+                                "",
+                            )
+                            vocab_answer = section.get(
+                                "vocab_answer",
+                                "",
+                            )
+                            vocab_response = detail.get(
+                                "vocab_response"
+                            ) or "No answer"
+                            vocab_correct = bool(
+                                detail.get("vocab_correct")
+                            )
+
+                            if vocab_question:
+                                st.write(
+                                    f"**Question:** "
+                                    f"{vocab_question}"
+                                )
+
+                            st.write(
+                                f"**Your answer:** "
+                                f"{vocab_response}"
+                            )
+
+                            if vocab_correct:
+                                st.success("✅ Correct")
+                            else:
+                                st.error("❌ Needs review")
+                                if vocab_answer:
+                                    st.write(
+                                        f"**Correct answer:** "
+                                        f"{vocab_answer}"
+                                    )
+                else:
+                    st.info(
+                        "No completed sections have been saved "
+                        "for this attempt yet."
+                    )
+    elif student_id is not None:
+        st.info(
+            "No Guided Reading activity has been recorded yet."
+        )
+
+
+    # =====================================================
+    # LEGACY PERFORMANCE SUMMARY
+    # Only show it if that older system actually has data.
+    # Do NOT say 'No progress yet' when other activity exists.
+    # =====================================================
     progress_rows = get_progress_rows(student_id)
 
     if progress_rows:
-        total_attempts = sum(row["attempt_count"] for row in progress_rows)
-        overall_best = max(float(row["best_score"]) for row in progress_rows)
-        overall_avg = round(sum(float(row["average_score"]) for row in progress_rows) / len(progress_rows), 2)
+        st.markdown("---")
+        section_header(
+            "📊 Pronunciation Lesson Summary",
+            "Summary of your standalone pronunciation lessons.",
+        )
+
+        total_attempts = sum(
+            row["attempt_count"]
+            for row in progress_rows
+        )
+
+        overall_best = max(
+            float(row["best_score"])
+            for row in progress_rows
+        )
+
+        overall_avg = round(
+            sum(
+                float(row["average_score"])
+                for row in progress_rows
+            )
+            / len(progress_rows),
+            2,
+        )
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("Lessons Practiced", len(progress_rows))
-        c2.metric("Total Attempts", total_attempts)
-        c3.metric("Best Score", f"{overall_best:.1f}")
+
+        c1.metric(
+            "Lessons Practiced",
+            len(progress_rows),
+        )
+
+        c2.metric(
+            "Total Attempts",
+            total_attempts,
+        )
+
+        c3.metric(
+            "Best Score",
+            f"{overall_best:.1f}",
+        )
 
         st.markdown(
-            f'''
+            f"""
             <div class="jami-card">
                 <h3>Performance Summary</h3>
                 <p class="jami-muted">
-                    Your average score across lessons is <strong>{overall_avg:.1f}</strong>.
+                    Your average score across standalone
+                    pronunciation lessons is
+                    <strong>{overall_avg:.1f}</strong>.
                 </p>
             </div>
-            ''',
+            """,
             unsafe_allow_html=True,
         )
-    else:
-        card("No progress yet", "Complete a lesson or recording activity to begin tracking your learning journey.")
 
+
+    # =====================================================
+    # STANDALONE PRONUNCIATION HISTORY
+    # =====================================================
     st.markdown("---")
-    section_header("📈 Pronunciation History", "Your most recent pronunciation attempts.")
 
-    attempt_history = get_attempt_history(student_id, limit=10)
+    section_header(
+        "📈 Standalone Pronunciation Practice",
+        (
+            "Recordings completed in the Pronunciation tab. "
+            "Guided Reading pronunciation appears above."
+        ),
+    )
+
+    attempt_history = get_attempt_history(
+        student_id,
+        limit=10,
+    )
+
     if attempt_history:
-        avg_score = sum(float(a["score"]) for a in attempt_history) / len(attempt_history)
-        st.metric("Average Pronunciation Score", f"{avg_score:.1f}")
+        avg_score = (
+            sum(
+                float(a["score"])
+                for a in attempt_history
+            )
+            / len(attempt_history)
+        )
 
-        for i, attempt in enumerate(attempt_history, start=1):
+        st.metric(
+            "Average Pronunciation Score",
+            f"{avg_score:.1f}",
+        )
+
+        for i, attempt in enumerate(
+            attempt_history,
+            start=1,
+        ):
             when = attempt.get("created_at", "")
-            with st.expander(f"Attempt {i} — {when} — Score: {attempt.get('score', 0)}/100"):
-                st.write(f"**Mode:** {attempt.get('mode', 'Unknown')}")
-                st.write(f"**Reference text:** {attempt.get('reference_text', '')}")
-                st.write(f"**Recognized text:** {attempt.get('recognized_text', '')}")
-                feedback_data = attempt.get("feedback", [])
-                if feedback_data:
-                    st.markdown(render_colored_feedback_with_ipa(feedback_data), unsafe_allow_html=True)
-    else:
-        card("No pronunciation attempts yet", "Record and analyze a reading to start building your pronunciation history.")
 
+            with st.expander(
+                f"Attempt {i} — {when} — "
+                f"Score: {attempt.get('score', 0)}/100"
+            ):
+                st.write(
+                    f"**Mode:** "
+                    f"{attempt.get('mode', 'Unknown')}"
+                )
+
+                st.write(
+                    f"**Reference text:** "
+                    f"{attempt.get('reference_text', '')}"
+                )
+
+                st.write(
+                    f"**Recognized text:** "
+                    f"{attempt.get('recognized_text', '')}"
+                )
+
+                feedback_data = attempt.get(
+                    "feedback",
+                    [],
+                )
+
+                if feedback_data:
+                    st.markdown(
+                        render_colored_feedback_with_ipa(
+                            feedback_data
+                        ),
+                        unsafe_allow_html=True,
+                    )
+    else:
+        st.info(
+            "No standalone Pronunciation-tab attempts yet. "
+            "Your Guided Reading pronunciation results "
+            "are shown in Guided Reading Progress above."
+        )
+
+
+    # =====================================================
+    # PHRASE PRACTICE HISTORY
+    # =====================================================
     st.markdown("---")
-    section_header("🎯 Phrase History", "Focused practice on short phrases and connected speech.")
 
-    phrase_history = get_phrase_history(student_id, limit=10)
+    section_header(
+        "🎯 Phrase Practice History",
+        (
+            "Focused phrase and connected-speech practice. "
+            "This is separate from Guided Reading."
+        ),
+    )
+
+    phrase_history = get_phrase_history(
+        student_id,
+        limit=10,
+    )
+
     if phrase_history:
-        for i, item in enumerate(phrase_history, start=1):
+        for i, item in enumerate(
+            phrase_history,
+            start=1,
+        ):
             when = item.get("created_at", "")
-            with st.expander(f"Phrase Attempt {i} — {when} — {item.get('phrase', '')}"):
-                st.write(f"**Recognized phrase:** {item.get('recognized_phrase', '')}")
-                st.write(f"**Phrase score:** {item.get('score', 0)}/100")
-                feedback_data = item.get("feedback", [])
+
+            with st.expander(
+                f"Phrase Attempt {i} — {when} — "
+                f"{item.get('phrase', '')}"
+            ):
+                st.write(
+                    f"**Recognized phrase:** "
+                    f"{item.get('recognized_phrase', '')}"
+                )
+
+                st.write(
+                    f"**Phrase score:** "
+                    f"{item.get('score', 0)}/100"
+                )
+
+                feedback_data = item.get(
+                    "feedback",
+                    [],
+                )
+
                 if feedback_data:
-                    st.markdown(render_colored_feedback_with_ipa(feedback_data), unsafe_allow_html=True)
+                    st.markdown(
+                        render_colored_feedback_with_ipa(
+                            feedback_data
+                        ),
+                        unsafe_allow_html=True,
+                    )
     else:
-        card("No phrase attempts yet", "Practice highlighted phrases to build targeted phrase-level feedback history.")
+        st.info(
+            "No dedicated phrase-practice attempts yet."
+        )
+
 
 if teacher_mode and teacher_name:
     with tab5:
