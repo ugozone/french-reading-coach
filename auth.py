@@ -4,6 +4,7 @@ import smtplib
 import requests
 from email.message import EmailMessage
 from typing import Optional
+from urllib.parse import urlparse
 
 import streamlit as st
 from supabase import Client, create_client
@@ -18,7 +19,23 @@ def get_secret(name: str, default: str = "") -> str:
         return str(os.getenv(name, default)).strip()
 
 
-SUPABASE_URL = get_secret("SUPABASE_URL", "")
+_SUPABASE_URL_RAW = get_secret("SUPABASE_URL", "")
+
+# Always reduce the configured Supabase URL to the project root.
+# Example:
+# https://project.supabase.co/rest/v1  -> https://project.supabase.co
+# https://project.supabase.co/auth/v1  -> https://project.supabase.co
+try:
+    _parsed_supabase_url = urlparse(_SUPABASE_URL_RAW)
+    SUPABASE_URL = (
+        f"{_parsed_supabase_url.scheme}://{_parsed_supabase_url.netloc}"
+        if _parsed_supabase_url.scheme and _parsed_supabase_url.netloc
+        else _SUPABASE_URL_RAW.rstrip("/")
+    )
+except Exception:
+    SUPABASE_URL = _SUPABASE_URL_RAW.rstrip("/")
+
+# Use only the current project's anon/publishable key.
 SUPABASE_KEY = get_secret("SUPABASE_ANON_KEY", "")
 
 # All new teacher-access requests notify this administrator address.
