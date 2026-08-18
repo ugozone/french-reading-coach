@@ -42,6 +42,8 @@ from db import (
     assign_reading_task,
     get_assignments_for_student,
     get_all_assignments_overview,
+    get_student_learning_activity,
+    get_all_learning_activity,
     mark_assignment_started,
     mark_assignment_completed,
     create_guided_task,
@@ -1347,6 +1349,169 @@ with tab4:
             unsafe_allow_html=True,
         )
 
+    # =====================================================
+    # UNIFIED STUDENT ACTIVITY
+    # =====================================================
+    st.markdown("---")
+    section_header(
+        "🧭 All My Learning Activity",
+        "Pronunciation, Guided Reading, grammar, phrase practice, and assignments in one place.",
+    )
+
+    student_activity = get_student_learning_activity(
+        student_id
+    )
+
+    if student_activity:
+        completed_activity = [
+            row for row in student_activity
+            if row.get("status") == "completed"
+        ]
+
+        scored_activity = [
+            row for row in completed_activity
+            if row.get("score") is not None
+        ]
+
+        activity_scores = [
+            float(row["score"])
+            for row in scored_activity
+        ]
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "All Activities",
+            len(student_activity),
+        )
+
+        c2.metric(
+            "Completed",
+            len(completed_activity),
+        )
+
+        c3.metric(
+            "In Progress / Assigned",
+            len(student_activity)
+            - len(completed_activity),
+        )
+
+        c4.metric(
+            "Average Score",
+            (
+                f"{sum(activity_scores) / len(activity_scores):.1f}/100"
+                if activity_scores
+                else "—"
+            ),
+        )
+
+        activity_types = sorted(
+            {
+                row.get("activity_type", "")
+                for row in student_activity
+                if row.get("activity_type")
+            }
+        )
+
+        selected_activity_type = st.selectbox(
+            "Filter my activity:",
+            ["All"] + activity_types,
+            key="student_activity_filter",
+        )
+
+        filtered_activity = (
+            student_activity
+            if selected_activity_type == "All"
+            else [
+                row for row in student_activity
+                if row.get("activity_type")
+                == selected_activity_type
+            ]
+        )
+
+        activity_rows = []
+
+        for row in filtered_activity:
+            completed = (
+                row.get("status") == "completed"
+            )
+
+            activity_rows.append({
+                "Activity": row.get(
+                    "activity_type",
+                    "",
+                ),
+                "Title": row.get(
+                    "activity_title",
+                    "",
+                ),
+                "Status": row.get(
+                    "status",
+                    "",
+                ),
+                "Score": (
+                    round(float(row["score"]), 1)
+                    if completed
+                    and row.get("score") is not None
+                    else "—"
+                ),
+                "Pronunciation": (
+                    round(
+                        float(
+                            row["pronunciation_score"]
+                        ),
+                        1,
+                    )
+                    if completed
+                    and row.get(
+                        "pronunciation_score"
+                    ) is not None
+                    else "—"
+                ),
+                "Comprehension": (
+                    round(
+                        float(
+                            row["comprehension_score"]
+                        ),
+                        1,
+                    )
+                    if completed
+                    and row.get(
+                        "comprehension_score"
+                    ) is not None
+                    else "—"
+                ),
+                "Grammar": (
+                    round(
+                        float(
+                            row["grammar_score"]
+                        ),
+                        1,
+                    )
+                    if completed
+                    and row.get(
+                        "grammar_score"
+                    ) is not None
+                    else "—"
+                ),
+                "XP": (
+                    row.get("xp")
+                    if row.get("xp") is not None
+                    else "—"
+                ),
+                "Date": row.get("date", ""),
+            })
+
+        st.dataframe(
+            activity_rows,
+            use_container_width=True,
+        )
+
+    elif student_id is not None:
+        st.info(
+            "No saved learning activity has been recorded yet."
+        )
+
     progress_rows = get_progress_rows(student_id)
 
     if progress_rows:
@@ -1432,6 +1597,256 @@ if teacher_mode and teacher_name:
         c1.metric("Students", len(students))
         c2.metric("Reading Tasks", len(tasks))
         c3.metric("Assignments", len(get_all_assignments_overview()))
+
+        st.markdown("---")
+        section_header(
+            "🧭 All Student Learning Activity",
+            "One view of pronunciation, Guided Reading, grammar, phrase practice, and assignments.",
+        )
+
+        all_activity = get_all_learning_activity()
+
+        if all_activity:
+            completed_activity = [
+                row for row in all_activity
+                if row.get("status") == "completed"
+            ]
+
+            scored_activity = [
+                row for row in completed_activity
+                if row.get("score") is not None
+            ]
+
+            teacher_scores = [
+                float(row["score"])
+                for row in scored_activity
+            ]
+
+            a1, a2, a3, a4 = st.columns(4)
+
+            a1.metric(
+                "Activity Records",
+                len(all_activity),
+            )
+
+            a2.metric(
+                "Completed",
+                len(completed_activity),
+            )
+
+            a3.metric(
+                "In Progress / Assigned",
+                len(all_activity)
+                - len(completed_activity),
+            )
+
+            a4.metric(
+                "Average Score",
+                (
+                    f"{sum(teacher_scores) / len(teacher_scores):.1f}/100"
+                    if teacher_scores
+                    else "—"
+                ),
+            )
+
+            student_options = sorted(
+                {
+                    row.get("student_name", "")
+                    for row in all_activity
+                    if row.get("student_name")
+                }
+            )
+
+            class_options = sorted(
+                {
+                    row.get("class_name", "")
+                    for row in all_activity
+                    if row.get("class_name")
+                }
+            )
+
+            type_options = sorted(
+                {
+                    row.get("activity_type", "")
+                    for row in all_activity
+                    if row.get("activity_type")
+                }
+            )
+
+            f1, f2, f3, f4 = st.columns(4)
+
+            student_filter = f1.selectbox(
+                "Student",
+                ["All"] + student_options,
+                key="teacher_activity_student_filter",
+            )
+
+            class_filter = f2.selectbox(
+                "Class",
+                ["All"] + class_options,
+                key="teacher_activity_class_filter",
+            )
+
+            type_filter = f3.selectbox(
+                "Activity",
+                ["All"] + type_options,
+                key="teacher_activity_type_filter",
+            )
+
+            status_filter = f4.selectbox(
+                "Status",
+                [
+                    "All",
+                    "completed",
+                    "in_progress",
+                    "assigned",
+                    "started",
+                ],
+                key="teacher_activity_status_filter",
+            )
+
+            filtered = all_activity
+
+            if student_filter != "All":
+                filtered = [
+                    row for row in filtered
+                    if row.get("student_name")
+                    == student_filter
+                ]
+
+            if class_filter != "All":
+                filtered = [
+                    row for row in filtered
+                    if row.get("class_name")
+                    == class_filter
+                ]
+
+            if type_filter != "All":
+                filtered = [
+                    row for row in filtered
+                    if row.get("activity_type")
+                    == type_filter
+                ]
+
+            if status_filter != "All":
+                filtered = [
+                    row for row in filtered
+                    if row.get("status")
+                    == status_filter
+                ]
+
+            teacher_rows = []
+
+            for row in filtered:
+                completed = (
+                    row.get("status") == "completed"
+                )
+
+                teacher_rows.append({
+                    "Student": row.get(
+                        "student_name",
+                        "",
+                    ),
+                    "Email": row.get(
+                        "email",
+                        "",
+                    ),
+                    "Class": row.get(
+                        "class_name",
+                        "",
+                    ),
+                    "Level": row.get(
+                        "level",
+                        "",
+                    ),
+                    "Activity": row.get(
+                        "activity_type",
+                        "",
+                    ),
+                    "Title": row.get(
+                        "activity_title",
+                        "",
+                    ),
+                    "Status": row.get(
+                        "status",
+                        "",
+                    ),
+                    "Score": (
+                        round(
+                            float(row["score"]),
+                            1,
+                        )
+                        if completed
+                        and row.get("score")
+                        is not None
+                        else "—"
+                    ),
+                    "Pronunciation": (
+                        round(
+                            float(
+                                row[
+                                    "pronunciation_score"
+                                ]
+                            ),
+                            1,
+                        )
+                        if completed
+                        and row.get(
+                            "pronunciation_score"
+                        ) is not None
+                        else "—"
+                    ),
+                    "Comprehension": (
+                        round(
+                            float(
+                                row[
+                                    "comprehension_score"
+                                ]
+                            ),
+                            1,
+                        )
+                        if completed
+                        and row.get(
+                            "comprehension_score"
+                        ) is not None
+                        else "—"
+                    ),
+                    "Grammar": (
+                        round(
+                            float(
+                                row[
+                                    "grammar_score"
+                                ]
+                            ),
+                            1,
+                        )
+                        if completed
+                        and row.get(
+                            "grammar_score"
+                        ) is not None
+                        else "—"
+                    ),
+                    "XP": (
+                        row.get("xp")
+                        if row.get("xp")
+                        is not None
+                        else "—"
+                    ),
+                    "Date": row.get(
+                        "date",
+                        "",
+                    ),
+                })
+
+            st.dataframe(
+                teacher_rows,
+                use_container_width=True,
+            )
+
+        else:
+            st.info(
+                "No saved student learning activity yet."
+            )
 
         st.markdown("---")
         section_header(

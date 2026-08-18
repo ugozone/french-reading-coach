@@ -1167,6 +1167,292 @@ def get_teacher_access_record(email: str):
         return None
 
 
+
+def get_student_learning_activity(student_id: str):
+    """
+    Return one normalized activity feed for a single student.
+
+    Includes:
+      - pronunciation attempts
+      - phrase/connected-speech attempts
+      - grammar progress
+      - guided reading attempts
+      - reading assignments
+    """
+    if db_supabase is None or not student_id:
+        return []
+
+    student = get_student(student_id) or {}
+    activities = []
+
+    # -----------------------------------------------------
+    # Pronunciation attempts
+    # -----------------------------------------------------
+    try:
+        result = (
+            db_supabase.table("attempts")
+            .select("*")
+            .eq("student_id", student_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        for row in result.data or []:
+            activities.append({
+                "student_id": student_id,
+                "student_name": student.get("full_name", ""),
+                "email": student.get("email", ""),
+                "class_name": student.get("class_name", ""),
+                "level": student.get("level", ""),
+                "teacher_name": student.get("teacher_name", ""),
+                "activity_type": "Pronunciation",
+                "activity_title": (
+                    row.get("reference_text")
+                    or "Pronunciation practice"
+                ),
+                "status": "completed",
+                "score": row.get("score"),
+                "pronunciation_score": row.get("score"),
+                "comprehension_score": None,
+                "grammar_score": None,
+                "xp": None,
+                "date": row.get("created_at"),
+                "record_id": row.get("id"),
+            })
+    except Exception:
+        pass
+
+    # -----------------------------------------------------
+    # Phrase / connected-speech practice
+    # -----------------------------------------------------
+    try:
+        result = (
+            db_supabase.table("phrase_attempts")
+            .select("*")
+            .eq("student_id", student_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        for row in result.data or []:
+            activities.append({
+                "student_id": student_id,
+                "student_name": student.get("full_name", ""),
+                "email": student.get("email", ""),
+                "class_name": student.get("class_name", ""),
+                "level": student.get("level", ""),
+                "teacher_name": student.get("teacher_name", ""),
+                "activity_type": "Phrase Practice",
+                "activity_title": (
+                    row.get("phrase")
+                    or row.get("reference_text")
+                    or "Phrase practice"
+                ),
+                "status": "completed",
+                "score": row.get("score"),
+                "pronunciation_score": row.get("score"),
+                "comprehension_score": None,
+                "grammar_score": None,
+                "xp": None,
+                "date": row.get("created_at"),
+                "record_id": row.get("id"),
+            })
+    except Exception:
+        pass
+
+    # -----------------------------------------------------
+    # Grammar progress
+    # -----------------------------------------------------
+    try:
+        result = (
+            db_supabase.table("grammar_progress")
+            .select(
+                """
+                *,
+                grammar_lessons(
+                    title,
+                    topic,
+                    cefr_level
+                )
+                """
+            )
+            .eq("student_id", student_id)
+            .order("last_answered_at", desc=True)
+            .execute()
+        )
+
+        for row in result.data or []:
+            lesson = row.get("grammar_lessons") or {}
+
+            total_questions = int(row.get("total_questions") or 0)
+            correct_answers = int(row.get("correct_answers") or 0)
+
+            grammar_score = (
+                round(
+                    (correct_answers / total_questions) * 100,
+                    2,
+                )
+                if total_questions
+                else None
+            )
+
+            activities.append({
+                "student_id": student_id,
+                "student_name": student.get("full_name", ""),
+                "email": student.get("email", ""),
+                "class_name": student.get("class_name", ""),
+                "level": student.get("level", ""),
+                "teacher_name": student.get("teacher_name", ""),
+                "activity_type": "Grammar",
+                "activity_title": (
+                    lesson.get("title")
+                    or "Grammar activity"
+                ),
+                "status": "completed",
+                "score": grammar_score,
+                "pronunciation_score": None,
+                "comprehension_score": None,
+                "grammar_score": grammar_score,
+                "xp": row.get("total_xp"),
+                "date": row.get("last_answered_at"),
+                "record_id": row.get("id"),
+            })
+    except Exception:
+        pass
+
+    # -----------------------------------------------------
+    # Guided Reading
+    # -----------------------------------------------------
+    try:
+        result = (
+            db_supabase.table("guided_reading_attempts")
+            .select(
+                """
+                *,
+                guided_reading_tasks(
+                    title,
+                    cefr_level,
+                    theme
+                )
+                """
+            )
+            .eq("student_id", student_id)
+            .order("started_at", desc=True)
+            .execute()
+        )
+
+        for row in result.data or []:
+            task = row.get("guided_reading_tasks") or {}
+            status = row.get("status") or "in_progress"
+
+            activities.append({
+                "student_id": student_id,
+                "student_name": student.get("full_name", ""),
+                "email": student.get("email", ""),
+                "class_name": student.get("class_name", ""),
+                "level": student.get("level", ""),
+                "teacher_name": student.get("teacher_name", ""),
+                "activity_type": "Guided Reading",
+                "activity_title": (
+                    task.get("title")
+                    or "Guided Reading"
+                ),
+                "status": status,
+                "score": (
+                    row.get("total_score")
+                    if status == "completed"
+                    else None
+                ),
+                "pronunciation_score": (
+                    row.get("overall_pronunciation_score")
+                    if status == "completed"
+                    else None
+                ),
+                "comprehension_score": (
+                    row.get("comprehension_score")
+                    if status == "completed"
+                    else None
+                ),
+                "grammar_score": None,
+                "xp": None,
+                "date": (
+                    row.get("completed_at")
+                    or row.get("started_at")
+                ),
+                "record_id": row.get("id"),
+            })
+    except Exception:
+        pass
+
+    # -----------------------------------------------------
+    # Teacher assignments
+    # -----------------------------------------------------
+    try:
+        assignments = get_assignments_for_student(student_id)
+
+        for row in assignments:
+            task = row.get("guided_reading_tasks") or {}
+
+            activities.append({
+                "student_id": student_id,
+                "student_name": student.get("full_name", ""),
+                "email": student.get("email", ""),
+                "class_name": student.get("class_name", ""),
+                "level": student.get("level", ""),
+                "teacher_name": (
+                    row.get("teacher_name")
+                    or student.get("teacher_name", "")
+                ),
+                "activity_type": "Assignment",
+                "activity_title": (
+                    task.get("title")
+                    or "Assigned reading"
+                ),
+                "status": row.get("status") or "assigned",
+                "score": None,
+                "pronunciation_score": None,
+                "comprehension_score": None,
+                "grammar_score": None,
+                "xp": None,
+                "date": row.get("assigned_at"),
+                "record_id": row.get("id"),
+            })
+    except Exception:
+        pass
+
+    activities.sort(
+        key=lambda x: str(x.get("date") or ""),
+        reverse=True,
+    )
+
+    return activities
+
+
+def get_all_learning_activity():
+    """
+    Return the same normalized activity structure for every saved student.
+    Used by the Teacher Dashboard.
+    """
+    activities = []
+
+    for student in get_all_students():
+        student_id = student.get("id")
+
+        if not student_id:
+            continue
+
+        activities.extend(
+            get_student_learning_activity(student_id)
+        )
+
+    activities.sort(
+        key=lambda x: str(x.get("date") or ""),
+        reverse=True,
+    )
+
+    return activities
+
+
 def get_teacher_profile_by_email(email: str):
     """Return an active, approved teacher profile for the signed-in email."""
     record = get_teacher_access_record(email)
