@@ -188,115 +188,175 @@ def submit_teacher_access_request(full_name: str, email: str, institution: str =
 
 
 
-def render_teacher_invite_activation() -> None:
+
+
+def render_teacher_password_setup() -> None:
     """
-    Activate an invited teacher using the email invitation code.
+    Teacher password setup / reset flow.
 
-    This avoids one-time clickable authentication links, which can be
-    consumed by email security scanners before the teacher clicks them.
+    Step 1:
+      Teacher enters approved email and requests a password setup email.
+
+    Step 2:
+      Recovery email returns to this app with:
+      ?token_hash=...&type=recovery&email=...
+
+    Step 3:
+      App verifies recovery token and lets teacher choose a password.
     """
-    with st.sidebar.expander("Activate Teacher Invitation", expanded=False):
-        st.caption(
-            "Already received a teacher invitation? Enter the email address "
-            "and invitation code from the email, then choose your password."
+
+    try:
+        token_hash = str(st.query_params.get("token_hash", "") or "").strip()
+        flow_type = str(st.query_params.get("type", "") or "").strip().lower()
+        recovery_email = str(st.query_params.get("email", "") or "").strip().lower()
+    except Exception:
+        token_hash = ""
+        flow_type = ""
+        recovery_email = ""
+
+    # -------------------------------------------------
+    # PASSWORD CREATION SCREEN AFTER RECOVERY EMAIL
+    # -------------------------------------------------
+    if token_hash and flow_type == "recovery":
+
+        st.sidebar.subheader("🔐 Set Teacher Password")
+        st.sidebar.caption(
+            "Create the password you will use for Teacher sign in."
         )
 
-        invite_email = st.text_input(
-            "Invited teacher email",
-            key="teacher_activation_email",
-        )
-
-        invite_code = st.text_input(
-            "Invitation code",
-            key="teacher_activation_code",
-            placeholder="Enter the code from your email",
-        )
-
-        new_password = st.text_input(
-            "Create password",
-            type="password",
-            key="teacher_activation_password",
-        )
-
-        confirm_password = st.text_input(
-            "Confirm password",
-            type="password",
-            key="teacher_activation_password_confirm",
-        )
-
-        activate = st.button(
-            "Activate Teacher Account",
-            key="teacher_activation_submit",
-        )
-
-        if not activate:
-            return
-
-        if supabase is None:
-            st.error("Supabase authentication is not configured.")
-            return
-
-        email_clean = (invite_email or "").strip().lower()
-        code_clean = (invite_code or "").strip().replace(" ", "")
-
-        if not email_clean:
-            st.error("Enter the email address that received the invitation.")
-            return
-
-        if not code_clean:
-            st.error("Enter the invitation code from the email.")
-            return
-
-        if len(new_password or "") < 8:
-            st.error("Password must contain at least 8 characters.")
-            return
-
-        if new_password != confirm_password:
-            st.error("The two passwords do not match.")
-            return
-
-        try:
-            # Verify the invitation code. Successful verification creates
-            # an authenticated session for the invited user.
-            supabase.auth.verify_otp(
-                {
-                    "email": email_clean,
-                    "token": code_clean,
-                    "type": "invite",
-                }
+        with st.sidebar.form("teacher_recovery_password_form"):
+            new_password = st.text_input(
+                "New password",
+                type="password",
+                key="teacher_recovery_password"
             )
 
-            # Set the teacher's chosen password while the invite session
-            # is authenticated.
-            supabase.auth.update_user(
-                {
-                    "password": new_password,
-                }
+            confirm_password = st.text_input(
+                "Confirm password",
+                type="password",
+                key="teacher_recovery_password_confirm"
             )
+
+            submit_password = st.form_submit_button(
+                "Save Teacher Password"
+            )
+
+        if submit_password:
+
+            if not recovery_email:
+                st.sidebar.error(
+                    "The recovery email address is missing. "
+                    "Please request a new password setup email."
+                )
+                return
+
+            if len(new_password or "") < 8:
+                st.sidebar.error(
+                    "Password must contain at least 8 characters."
+                )
+                return
+
+            if new_password != confirm_password:
+                st.sidebar.error("The two passwords do not match.")
+                return
 
             try:
-                supabase.auth.sign_out()
-            except Exception:
-                pass
+                supabase.auth.verify_otp({
+                    "email": recovery_email,
+                    "token_hash": token_hash,
+                    "type": "recovery",
+                })
 
-            st.session_state["teacher_activation_message"] = (
-                "Teacher account activated successfully. "
-                "You can now sign in with your email and new password."
-            )
+                supabase.auth.update_user({
+                    "password": new_password
+                })
 
-            st.rerun()
+                try:
+                    supabase.auth.sign_out()
+                except Exception:
+                    pass
 
-        except Exception as exc:
-            # Temporarily show enough detail to diagnose activation problems.
-            error_text = str(exc)
+                try:
+                    st.query_params.clear()
+                except Exception:
+                    pass
 
-            st.error(
-                "Teacher activation failed. Make sure you are using the "
-                "newest invitation email and the correct code."
-            )
+                st.session_state["teacher_password_saved"] = True
 
-            st.caption(f"Supabase response: {error_text}")
+                st.rerun()
 
+            except Exception as exc:
+                st.sidebar.error(
+                    "Password setup failed. Please request a new "
+                    "password setup email."
+                )
+                st.sidebar.caption(
+                    f"Supabase response: {str(exc)}"
+                )
+
+        return
+
+    # -------------------------------------------------
+    # NORMAL PASSWORD SETUP REQUEST
+    # -------------------------------------------------
+    with st.sidebar.expander(
+        "Set / Reset Teacher Password",
+        expanded=False
+    ):
+
+        st.caption(
+            "Approved teachers can request a secure email "
+            "to create or reset their password."
+        )
+
+        email = st.text_input(
+            "Teacher email",
+            key="teacher_password_setup_email"
+        )
+
+        if st.button(
+            "Send Password Setup Email",
+            key="teacher_password_setup_send"
+        ):
+
+            clean_email = (email or "").strip().lower()
+
+            if not clean_email:
+                st.error("Enter your approved teacher email.")
+                return
+
+            # Only approved teachers should receive teacher password setup
+            teacher_record = get_teacher_access_record(clean_email)
+
+            if not teacher_record or not teacher_record.get("is_active"):
+                st.error(
+                    "This email is not currently approved for teacher access."
+                )
+                return
+
+            try:
+                redirect_url = (
+                    "https://french-reading-coach-omsbhfj4sefvrh9nn25zff."
+                    "streamlit.app/"
+                )
+
+                supabase.auth.reset_password_for_email(
+                    clean_email,
+                    {
+                        "redirect_to": redirect_url
+                    }
+                )
+
+                st.success(
+                    "Password setup email sent. "
+                    "Check your inbox and spam folder."
+                )
+
+            except Exception as exc:
+                st.error(
+                    "The password setup email could not be sent."
+                )
+                st.caption(f"Supabase response: {str(exc)}")
 
 
 def render_auth_sidebar() -> None:
@@ -311,7 +371,14 @@ def render_auth_sidebar() -> None:
 
     st.sidebar.header("👤 Account")
 
-    render_teacher_invite_activation()
+    if st.session_state.pop("teacher_password_saved", False):
+        st.sidebar.success(
+            "Teacher password saved successfully. "
+            "You can now sign in."
+        )
+
+    render_teacher_password_setup()
+
 
     current_user = get_current_user()
 
