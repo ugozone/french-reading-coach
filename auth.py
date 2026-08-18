@@ -315,7 +315,6 @@ def render_teacher_password_setup() -> None:
 
             try:
                 supabase.auth.verify_otp({
-                    "email": recovery_email,
                     "token_hash": token_hash,
                     "type": "recovery",
                 })
