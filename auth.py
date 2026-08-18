@@ -1,6 +1,7 @@
 import os
 import re
 import smtplib
+import requests
 from email.message import EmailMessage
 from typing import Optional
 
@@ -18,7 +19,7 @@ def get_secret(name: str, default: str = "") -> str:
 
 
 SUPABASE_URL = get_secret("SUPABASE_URL", "")
-SUPABASE_KEY = get_secret("SUPABASE_KEY", get_secret("SUPABASE_ANON_KEY", ""))
+SUPABASE_KEY = get_secret("SUPABASE_ANON_KEY", "")
 
 # All new teacher-access requests notify this administrator address.
 ADMIN_NOTIFICATION_EMAIL = "founder@intonasphereai.org"
@@ -370,7 +371,28 @@ def render_teacher_password_setup() -> None:
                 return
 
             try:
-                supabase.auth.reset_password_for_email(clean_email)
+                # Call Supabase Auth recovery endpoint directly.
+                # This bypasses the SDK path that is currently returning
+                # "Invalid path specified in request URL".
+                recovery_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/recover"
+
+                response = requests.post(
+                    recovery_url,
+                    headers={
+                        "apikey": SUPABASE_KEY,
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "email": clean_email,
+                    },
+                    timeout=20,
+                )
+
+                if response.status_code >= 400:
+                    raise RuntimeError(
+                        f"Supabase recovery HTTP {response.status_code}: "
+                        f"{response.text}"
+                    )
 
                 st.success(
                     "Password setup email sent. "
