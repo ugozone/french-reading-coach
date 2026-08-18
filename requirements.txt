@@ -6,3 +6,6 @@ pypdf
 docx2txt
 phonemizer
 supabase
+
+praat-parselmouth
+numpy

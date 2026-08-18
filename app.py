@@ -58,6 +58,8 @@ from speech import (
     transcribe_audio_file,
     generate_coaching_message,
     detect_attempt_issue,
+    phonetic_transcription,
+    analyze_speech_acoustics,
 )
 from ui_helpers import (
     make_lesson_label,
@@ -710,6 +712,15 @@ with tab1:
                 wav_path = tmp_wav.name
 
             transcript = transcribe_audio_file(wav_path)
+
+            # Full IPA + acoustic/prosodic analysis
+            target_full_ipa = phonetic_transcription(reference_text)
+            recognized_full_ipa = phonetic_transcription(transcript)
+            acoustic = analyze_speech_acoustics(
+                wav_path,
+                transcript=transcript,
+            )
+
             score = pronunciation_score(reference_text, transcript)
             feedback = word_feedback(reference_text, transcript)
             attempt_issue = detect_attempt_issue(reference_text, transcript, feedback)
@@ -760,6 +771,147 @@ with tab1:
 
             st.markdown("### Word-by-word feedback")
             st.markdown(render_colored_feedback_with_ipa(feedback), unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown("### Complete Speech & Phonetic Analysis")
+
+            st.markdown("#### Full phonetic transcription (IPA)")
+            st.write("**Target text:**")
+            st.code(target_full_ipa, language=None)
+
+            st.write("**Recognized speech:**")
+            st.code(recognized_full_ipa, language=None)
+
+            st.caption(
+                "IPA is a broad canonical transcription of the target and "
+                "recognized French text. It complements, rather than replaces, "
+                "manual narrow phonetic transcription."
+            )
+
+            if acoustic.get("analysis_error"):
+                st.warning(
+                    "Some acoustic measurements could not be calculated: "
+                    + str(acoustic.get("analysis_error"))
+                )
+            else:
+                st.markdown("#### Acoustic & prosodic measures")
+
+                c1, c2, c3, c4 = st.columns(4)
+
+                c1.metric(
+                    "Duration",
+                    f"{acoustic['duration_s']:.2f} s"
+                    if acoustic.get("duration_s") is not None
+                    else "—",
+                )
+
+                c2.metric(
+                    "Mean F0",
+                    f"{acoustic['f0_mean_hz']:.1f} Hz"
+                    if acoustic.get("f0_mean_hz") is not None
+                    else "—",
+                )
+
+                c3.metric(
+                    "F0 range",
+                    f"{acoustic['f0_range_hz']:.1f} Hz"
+                    if acoustic.get("f0_range_hz") is not None
+                    else "—",
+                )
+
+                c4.metric(
+                    "Mean intensity",
+                    f"{acoustic['intensity_mean_db']:.1f} dB"
+                    if acoustic.get("intensity_mean_db") is not None
+                    else "—",
+                )
+
+                c5, c6, c7, c8 = st.columns(4)
+
+                c5.metric(
+                    "F0 minimum",
+                    f"{acoustic['f0_min_hz']:.1f} Hz"
+                    if acoustic.get("f0_min_hz") is not None
+                    else "—",
+                )
+
+                c6.metric(
+                    "F0 maximum",
+                    f"{acoustic['f0_max_hz']:.1f} Hz"
+                    if acoustic.get("f0_max_hz") is not None
+                    else "—",
+                )
+
+                c7.metric(
+                    "Estimated speech rate",
+                    f"{acoustic['speech_rate_syll_s']:.2f} syll/s"
+                    if acoustic.get("speech_rate_syll_s") is not None
+                    else "—",
+                )
+
+                c8.metric(
+                    "Final pitch",
+                    acoustic.get("final_pitch_direction", "—"),
+                )
+
+                c9, c10, c11, c12 = st.columns(4)
+
+                c9.metric(
+                    "Median F1",
+                    f"{acoustic['f1_median_hz']:.0f} Hz"
+                    if acoustic.get("f1_median_hz") is not None
+                    else "—",
+                )
+
+                c10.metric(
+                    "Median F2",
+                    f"{acoustic['f2_median_hz']:.0f} Hz"
+                    if acoustic.get("f2_median_hz") is not None
+                    else "—",
+                )
+
+                c11.metric(
+                    "Final F0",
+                    f"{acoustic['final_f0_hz']:.1f} Hz"
+                    if acoustic.get("final_f0_hz") is not None
+                    else "—",
+                )
+
+                c12.metric(
+                    "Final F0 change",
+                    f"{acoustic['final_pitch_change_hz']:+.1f} Hz"
+                    if acoustic.get("final_pitch_change_hz") is not None
+                    else "—",
+                )
+
+                with st.expander("See detailed speech measurements"):
+                    st.write(
+                        f"**Recognized words:** "
+                        f"{acoustic.get('word_count', 0)}"
+                    )
+                    st.write(
+                        f"**Estimated syllables:** "
+                        f"{acoustic.get('syllable_count_est', 0)}"
+                    )
+
+                    slope = acoustic.get(
+                        "final_pitch_slope_hz_s"
+                    )
+
+                    st.write(
+                        "**Final pitch slope:** "
+                        + (
+                            f"{slope:+.2f} Hz/s"
+                            if slope is not None
+                            else "—"
+                        )
+                    )
+
+                    st.caption(
+                        "F1/F2 values are global exploratory summaries across "
+                        "the utterance; vowel-specific formant analysis requires "
+                        "segment-level alignment."
+                    )
 
         except Exception as e:
             st.error(f"Analysis failed: {e}")

@@ -306,3 +306,209 @@ def detect_attempt_issue(reference_text: str, transcript: str, feedback: list) -
         return "Several words were not recognized clearly. Speak a little slower and articulate each word more fully."
 
     return "The recording was captured, but some words need clearer pronunciation."
+
+
+# ===== COMPLETE SPEECH + IPA ANALYSIS =====
+
+def phonetic_transcription(text: str) -> str:
+    """
+    Return a broad French IPA transcription of text.
+
+    This is a canonical transcription generated from the recognized
+    or target text; it is not a narrow manual transcription of every
+    phonetic realization in the recording.
+    """
+    if text is None or not str(text).strip():
+        return ""
+
+    if not PHONEMIZER_AVAILABLE:
+        return "IPA unavailable"
+
+    try:
+        ipa = phonemize(
+            str(text).strip(),
+            language="fr-fr",
+            backend="espeak",
+            strip=True,
+            preserve_punctuation=True,
+        )
+        return str(ipa).strip() or "IPA unavailable"
+    except Exception:
+        try:
+            ipa = phonemize(
+                str(text).strip(),
+                language="fr-fr",
+                backend="espeak",
+                strip=True,
+            )
+            return str(ipa).strip() or "IPA unavailable"
+        except Exception:
+            return "IPA unavailable"
+
+
+def _estimate_french_syllables(text: str) -> int:
+    """Approximate French syllable count from vowel-group nuclei."""
+    if not text:
+        return 0
+
+    words = re.findall(
+        r"[A-Za-zÀ-ÖØ-öø-ÿŒœÆæ'-]+",
+        str(text).lower()
+    )
+
+    total = 0
+    vowel_pattern = re.compile(
+        r"[aeiouyàâäæéèêëîïôöœùûüÿ]+",
+        re.IGNORECASE,
+    )
+
+    for word in words:
+        groups = vowel_pattern.findall(word)
+        total += max(1, len(groups)) if word else 0
+
+    return total
+
+
+def analyze_speech_acoustics(audio_path: str, transcript: str = "") -> dict:
+    """
+    Exploratory acoustic/prosodic analysis using Praat-Parselmouth.
+    """
+    result = {
+        "duration_s": None,
+        "f0_mean_hz": None,
+        "f0_min_hz": None,
+        "f0_max_hz": None,
+        "f0_range_hz": None,
+        "intensity_mean_db": None,
+        "f1_median_hz": None,
+        "f2_median_hz": None,
+        "final_f0_hz": None,
+        "final_pitch_change_hz": None,
+        "final_pitch_slope_hz_s": None,
+        "final_pitch_direction": "Unavailable",
+        "word_count": 0,
+        "syllable_count_est": 0,
+        "speech_rate_syll_s": None,
+    }
+
+    try:
+        import math
+        import statistics
+        import parselmouth
+
+        sound = parselmouth.Sound(audio_path)
+        duration = float(sound.get_total_duration())
+        result["duration_s"] = duration
+
+        # ---------------- F0 ----------------
+        pitch = sound.to_pitch(
+            time_step=0.01,
+            pitch_floor=75,
+            pitch_ceiling=500,
+        )
+
+        frequencies = list(pitch.selected_array["frequency"])
+        times = list(pitch.xs())
+
+        voiced_pairs = [
+            (float(t), float(f))
+            for t, f in zip(times, frequencies)
+            if f and float(f) > 0 and math.isfinite(float(f))
+        ]
+
+        voiced_f0 = [f for _, f in voiced_pairs]
+
+        if voiced_f0:
+            result["f0_mean_hz"] = statistics.mean(voiced_f0)
+            result["f0_min_hz"] = min(voiced_f0)
+            result["f0_max_hz"] = max(voiced_f0)
+            result["f0_range_hz"] = (
+                result["f0_max_hz"] - result["f0_min_hz"]
+            )
+            result["final_f0_hz"] = voiced_f0[-1]
+
+            # Final 20% pitch movement
+            final_start = max(0.0, duration * 0.80)
+            final_pairs = [
+                (t, f)
+                for t, f in voiced_pairs
+                if t >= final_start
+            ]
+
+            if len(final_pairs) >= 2:
+                t1, f1 = final_pairs[0]
+                t2, f2 = final_pairs[-1]
+
+                change = f2 - f1
+                result["final_pitch_change_hz"] = change
+
+                if t2 > t1:
+                    result["final_pitch_slope_hz_s"] = change / (t2 - t1)
+
+                if change > 5:
+                    result["final_pitch_direction"] = "Rise"
+                elif change < -5:
+                    result["final_pitch_direction"] = "Fall"
+                else:
+                    result["final_pitch_direction"] = "Level"
+
+        # ---------------- Intensity ----------------
+        intensity = sound.to_intensity()
+        intensity_values = [
+            float(v)
+            for v in intensity.values[0]
+            if math.isfinite(float(v))
+        ]
+
+        if intensity_values:
+            result["intensity_mean_db"] = statistics.mean(
+                intensity_values
+            )
+
+        # ---------------- Formants ----------------
+        formant = sound.to_formant_burg(
+            time_step=0.01,
+            max_number_of_formants=5,
+            maximum_formant=5500,
+        )
+
+        f1_values = []
+        f2_values = []
+
+        if duration > 0:
+            # Sample across the utterance while avoiding exact boundaries.
+            for i in range(1, 30):
+                t = duration * (i / 30.0)
+
+                try:
+                    f1 = formant.get_value_at_time(1, t)
+                    f2 = formant.get_value_at_time(2, t)
+
+                    if f1 and math.isfinite(float(f1)):
+                        f1_values.append(float(f1))
+
+                    if f2 and math.isfinite(float(f2)):
+                        f2_values.append(float(f2))
+                except Exception:
+                    pass
+
+        if f1_values:
+            result["f1_median_hz"] = statistics.median(f1_values)
+
+        if f2_values:
+            result["f2_median_hz"] = statistics.median(f2_values)
+
+        # ---------------- Speech rate ----------------
+        words = len((transcript or "").split())
+        syllables = _estimate_french_syllables(transcript)
+
+        result["word_count"] = words
+        result["syllable_count_est"] = syllables
+
+        if duration > 0 and syllables:
+            result["speech_rate_syll_s"] = syllables / duration
+
+    except Exception as exc:
+        result["analysis_error"] = str(exc)
+
+    return result
