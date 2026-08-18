@@ -43,6 +43,9 @@ from db import (
     get_assignments_for_student,
     get_all_assignments_overview,
     get_student_learning_activity,
+    get_speaking_lab_modules,
+    get_speaking_lab_tasks,
+    get_speaking_lab_progress,
     get_all_learning_activity,
     mark_assignment_started,
     mark_assignment_completed,
@@ -710,12 +713,27 @@ teacher_mode = st.session_state.teacher_mode
 teacher_name = st.session_state.teacher_name
 
 if teacher_mode and teacher_name:
-    tab1, tab2, tab3, tab4, tab5, research_tab = st.tabs(
-        ["🎤 Pronunciation", "🎮 Grammar Game", "📚 Guided Reading", "📊 Progress", "👩‍🏫 Teacher Dashboard", "🔬 Research Beta"]
+    tab1, tab2, tab3, lab_tab, tab4, tab5, research_tab = st.tabs(
+        [
+            "🎤 Pronunciation",
+            "🎮 Grammar Game",
+            "📚 Guided Reading",
+            "🇫🇷 Weekly Speaking Lab",
+            "📊 Progress",
+            "👩‍🏫 Teacher Dashboard",
+            "🔬 Research Beta",
+        ]
     )
 else:
-    tab1, tab2, tab3, tab4, research_tab = st.tabs(
-        ["🎤 Pronunciation", "🎮 Grammar Game", "📚 Guided Reading", "📊 Progress", "🔬 Research Beta"]
+    tab1, tab2, tab3, lab_tab, tab4, research_tab = st.tabs(
+        [
+            "🎤 Pronunciation",
+            "🎮 Grammar Game",
+            "📚 Guided Reading",
+            "🇫🇷 Weekly Speaking Lab",
+            "📊 Progress",
+            "🔬 Research Beta",
+        ]
     )
     if student_id is None:
         st.info("Guest mode is active. You can use the learning tools now; create a student profile only if you want progress saved and teacher assignments tracked.")
@@ -1491,6 +1509,607 @@ with tab3:
                             )
                             st.rerun()
 
+
+
+
+# ===== WEEKLY SPEAKING LAB UI =====
+
+with lab_tab:
+
+    section_header(
+        "🇫🇷 Weekly Speaking Lab",
+        (
+            "Build your French week by week through listening, "
+            "pronunciation, reading, language building, speaking, "
+            "feedback, and retry."
+        ),
+    )
+
+    if student_id is None:
+        st.info(
+            "You can preview the Weekly Speaking Lab in guest mode. "
+            "Create or load your saved student profile to track "
+            "completion and scores."
+        )
+
+    speaking_modules = get_speaking_lab_modules(
+        course_code="FRE 101"
+    )
+
+    if not speaking_modules:
+        st.info(
+            "No FRE 101 Weekly Speaking Lab modules are available yet."
+        )
+
+    else:
+        module_map = {
+            (
+                f"Week {module.get('week_number')} — "
+                f"{module.get('title', '')}"
+            ): module
+            for module in speaking_modules
+        }
+
+        selected_module_label = st.selectbox(
+            "Choose your weekly Speaking Lab:",
+            list(module_map.keys()),
+            key="speaking_lab_module_select",
+        )
+
+        selected_module = module_map[
+            selected_module_label
+        ]
+
+        module_id = selected_module["id"]
+
+        speaking_tasks = get_speaking_lab_tasks(
+            module_id
+        )
+
+        saved_lab_progress = (
+            get_speaking_lab_progress(
+                student_id,
+                module_id,
+            )
+            if student_id is not None
+            else []
+        )
+
+        progress_by_task = {
+            str(row.get("task_id")): row
+            for row in saved_lab_progress
+            if row.get("task_id")
+        }
+
+        # -------------------------------------------------
+        # Resolve effective task status.
+        #
+        # Task 3 already uses the existing Guided Reading
+        # engine, so recognize its status even before we
+        # write the Speaking Lab progress bridge.
+        # -------------------------------------------------
+
+        effective_status = {}
+
+        for task in speaking_tasks:
+            task_id_string = str(task.get("id"))
+
+            saved_row = progress_by_task.get(
+                task_id_string,
+                {},
+            )
+
+            status = (
+                saved_row.get("status")
+                or "not_started"
+            )
+
+            if (
+                task.get("task_type") == "guided_reading"
+                and student_id is not None
+                and task.get("guided_reading_task_id")
+            ):
+                guided_status = (
+                    get_guided_reading_attempt_status(
+                        student_id,
+                        task.get(
+                            "guided_reading_task_id"
+                        ),
+                    )
+                )
+
+                if guided_status:
+                    guided_state = (
+                        guided_status.get("status")
+                        or "in_progress"
+                    )
+
+                    if guided_state == "completed":
+                        status = "completed"
+                    elif (
+                        status != "completed"
+                        and guided_state == "in_progress"
+                    ):
+                        status = "in_progress"
+
+            effective_status[
+                task_id_string
+            ] = status
+
+
+        completed_count = sum(
+            1
+            for status in effective_status.values()
+            if status == "completed"
+        )
+
+        total_task_count = len(
+            speaking_tasks
+        )
+
+        completion_fraction = (
+            completed_count / total_task_count
+            if total_task_count
+            else 0
+        )
+
+
+        # -------------------------------------------------
+        # WEEK HEADER
+        # -------------------------------------------------
+
+        st.markdown(
+            f"""
+            <div class="jami-card">
+                <h2>
+                    FRE 101 — Week
+                    {selected_module.get('week_number', '')}
+                </h2>
+
+                <h3>
+                    {selected_module.get('title', '')}
+                </h3>
+
+                <p class="jami-muted">
+                    <strong>
+                        {selected_module.get('chapter', '')}
+                    </strong>
+                    &nbsp;•&nbsp;
+                    {selected_module.get('textbook_pages', '')}
+                </p>
+
+                <p>
+                    <strong>Can-Do:</strong><br>
+                    <em>
+                        {selected_module.get('can_do', '')}
+                    </em>
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+        st.markdown("### 📈 Weekly Progress")
+
+        st.progress(
+            completion_fraction
+        )
+
+        p1, p2, p3 = st.columns(3)
+
+        p1.metric(
+            "Completed",
+            f"{completed_count}/{total_task_count}",
+        )
+
+        p2.metric(
+            "Weekly Points",
+            f"{selected_module.get('total_points', 20)}",
+        )
+
+        p3.metric(
+            "Progress",
+            f"{completion_fraction * 100:.0f}%",
+        )
+
+
+        if selected_module.get("description"):
+            st.info(
+                selected_module["description"]
+            )
+
+
+        st.markdown("---")
+        st.markdown("## Your Weekly Learning Path")
+
+        icon_map = {
+            "listening_notice": "👂",
+            "pronunciation": "🎤",
+            "guided_reading": "📚",
+            "build": "🧩",
+            "speaking_mission": "💬",
+            "retry_reflection": "🔄",
+        }
+
+        status_map = {
+            "completed": "✅ Completed",
+            "in_progress": "⏳ In Progress",
+            "assigned": "📌 Assigned",
+            "not_started": "⬜ Not Started",
+        }
+
+
+        for task in speaking_tasks:
+
+            task_id_string = str(
+                task.get("id")
+            )
+
+            task_type = task.get(
+                "task_type",
+                "",
+            )
+
+            icon = icon_map.get(
+                task_type,
+                "➡️",
+            )
+
+            task_status = (
+                effective_status.get(
+                    task_id_string,
+                    "not_started",
+                )
+            )
+
+            status_label = status_map.get(
+                task_status,
+                task_status.replace(
+                    "_",
+                    " ",
+                ).title(),
+            )
+
+            task_title = (
+                task.get("short_title")
+                or task.get("title")
+                or "Speaking Lab Task"
+            )
+
+            task_points = (
+                task.get("points")
+                or 0
+            )
+
+            with st.expander(
+                (
+                    f"{icon} "
+                    f"{task.get('task_order', '')}. "
+                    f"{task_title} "
+                    f"— {status_label} "
+                    f"— {task_points} pts"
+                ),
+                expanded=False,
+            ):
+
+                if task.get("instructions"):
+                    st.markdown(
+                        "**Instructions**"
+                    )
+                    st.write(
+                        task["instructions"]
+                    )
+
+                if task.get("student_prompt"):
+                    st.markdown(
+                        "**Your task**"
+                    )
+                    st.write(
+                        task["student_prompt"]
+                    )
+
+                content = task.get(
+                    "content"
+                )
+
+                if not isinstance(
+                    content,
+                    dict,
+                ):
+                    content = {}
+
+
+                # -----------------------------------------
+                # TASK 1 — LISTEN & NOTICE
+                # -----------------------------------------
+
+                if task_type == "listening_notice":
+
+                    dialogue = content.get(
+                        "dialogue",
+                        [],
+                    )
+
+                    if dialogue:
+                        st.markdown(
+                            "#### 💬 Dialogue"
+                        )
+
+                        dialogue_text = " ".join(
+                            str(line.get("text", ""))
+                            for line in dialogue
+                        ).strip()
+
+                        if dialogue_text:
+                            if st.button(
+                                "🔊 Listen to the dialogue",
+                                key=(
+                                    "lab_dialogue_audio_"
+                                    + task_id_string
+                                ),
+                            ):
+                                play_tts_audio_safe(
+                                    text=dialogue_text,
+                                    lang="fr",
+                                    key_prefix=(
+                                        "lab_dialogue_"
+                                        + task_id_string
+                                    ),
+                                )
+
+                        for line in dialogue:
+                            speaker = line.get(
+                                "speaker",
+                                "",
+                            )
+                            text_line = line.get(
+                                "text",
+                                "",
+                            )
+
+                            st.markdown(
+                                f"**{speaker}:** "
+                                f"{text_line}"
+                            )
+
+                    notice_targets = content.get(
+                        "notice_targets",
+                        [],
+                    )
+
+                    if notice_targets:
+                        st.markdown(
+                            "#### 👀 What should you notice?"
+                        )
+
+                        for target in notice_targets:
+                            st.write(
+                                f"• {target}"
+                            )
+
+                    questions = content.get(
+                        "questions",
+                        [],
+                    )
+
+                    if questions:
+                        st.markdown(
+                            "#### 🧠 Check your understanding"
+                        )
+
+                        for number, question in enumerate(
+                            questions,
+                            start=1,
+                        ):
+                            st.write(
+                                f"{number}. "
+                                f"{question.get('question', '')}"
+                            )
+
+
+                # -----------------------------------------
+                # TASK 2 — PRONUNCIATION
+                # -----------------------------------------
+
+                elif task_type == "pronunciation":
+
+                    targets = content.get(
+                        "targets",
+                        [],
+                    )
+
+                    if targets:
+                        st.markdown(
+                            "#### 🎤 Pronunciation targets"
+                        )
+
+                        for target in targets:
+                            st.write(
+                                f"• {target}"
+                            )
+
+                    focus = content.get(
+                        "focus",
+                        [],
+                    )
+
+                    if focus:
+                        st.markdown(
+                            "#### 🔎 Focus"
+                        )
+
+                        for item in focus:
+                            st.write(
+                                f"• {item}"
+                            )
+
+                    st.info(
+                        "For now, complete these expressions in the "
+                        "🎤 Pronunciation tab. In the next build step, "
+                        "we will place the recording controls directly "
+                        "inside this weekly task."
+                    )
+
+
+                # -----------------------------------------
+                # TASK 3 — GUIDED READING
+                # -----------------------------------------
+
+                elif task_type == "guided_reading":
+
+                    reading_title = content.get(
+                        "reading_title",
+                        "",
+                    )
+
+                    if reading_title:
+                        st.markdown(
+                            f"#### 📖 {reading_title}"
+                        )
+
+                    dialogue = content.get(
+                        "dialogue",
+                        [],
+                    )
+
+                    for line in dialogue:
+                        st.markdown(
+                            f"**{line.get('speaker', '')}:** "
+                            f"{line.get('text', '')}"
+                        )
+
+                    if task_status == "completed":
+                        st.success(
+                            "Your Guided Reading for this task "
+                            "is completed."
+                        )
+                    elif task_status == "in_progress":
+                        st.warning(
+                            "Your Guided Reading is in progress."
+                        )
+                    else:
+                        st.info(
+                            "Open the 📚 Guided Reading tab and select "
+                            "“Week 1 — Première rencontre” to complete "
+                            "this task."
+                        )
+
+
+                # -----------------------------------------
+                # TASK 4 — BUILD
+                # -----------------------------------------
+
+                elif task_type == "build":
+
+                    model = content.get(
+                        "model",
+                        [],
+                    )
+
+                    if model:
+                        st.markdown(
+                            "#### 🧩 Build your introduction"
+                        )
+
+                        for line in model:
+                            st.write(
+                                line
+                            )
+
+                    optional = content.get(
+                        "optional_additions",
+                        [],
+                    )
+
+                    if optional:
+                        st.markdown(
+                            "#### ➕ Optional expressions"
+                        )
+
+                        for expression in optional:
+                            st.write(
+                                f"• {expression}"
+                            )
+
+
+                # -----------------------------------------
+                # TASK 5 — SPEAKING MISSION
+                # -----------------------------------------
+
+                elif task_type == "speaking_mission":
+
+                    requirements = content.get(
+                        "requirements",
+                        [],
+                    )
+
+                    if requirements:
+                        st.markdown(
+                            "#### 💬 Your mission must include"
+                        )
+
+                        for requirement in requirements:
+                            st.write(
+                                f"• {requirement}"
+                            )
+
+                    min_seconds = content.get(
+                        "duration_seconds_min"
+                    )
+
+                    max_seconds = content.get(
+                        "duration_seconds_max"
+                    )
+
+                    if min_seconds and max_seconds:
+                        st.caption(
+                            f"Target speaking time: "
+                            f"{min_seconds}–{max_seconds} seconds"
+                        )
+
+
+                # -----------------------------------------
+                # TASK 6 — RETRY & REFLECT
+                # -----------------------------------------
+
+                elif task_type == "retry_reflection":
+
+                    choices = content.get(
+                        "improvement_choices",
+                        [],
+                    )
+
+                    if choices:
+                        st.markdown(
+                            "#### 🎯 Choose one improvement goal"
+                        )
+
+                        for choice in choices:
+                            st.write(
+                                f"• {choice}"
+                            )
+
+                    reflection_prompt = content.get(
+                        "reflection_prompt"
+                    )
+
+                    if reflection_prompt:
+                        st.markdown(
+                            "#### ✍️ Reflection"
+                        )
+                        st.write(
+                            reflection_prompt
+                        )
+
+
+        st.markdown("---")
+
+        st.caption(
+            "The Weekly Speaking Lab is part of "
+            "Class Activity & Participation, which represents "
+            "20% of the FRE 101 course grade."
+        )
 
 
 with tab4:

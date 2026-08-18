@@ -1906,3 +1906,78 @@ def create_guided_task_from_teacher_text(text_data: dict, teacher_name: str, aud
         audio_url=audio_url,
         instructions=text_data.get("teacher_tip", ""),
     )
+
+
+# ===== WEEKLY SPEAKING LAB HELPERS =====
+
+def get_speaking_lab_modules(
+    course_code: str | None = None,
+    active_only: bool = True,
+):
+    """Return Weekly Speaking Lab modules."""
+    if db_supabase is None:
+        return []
+
+    try:
+        query = (
+            db_supabase.table("speaking_lab_modules")
+            .select("*")
+            .order("week_number")
+        )
+
+        if course_code:
+            query = query.eq("course_code", course_code)
+
+        if active_only:
+            query = query.eq("is_active", True)
+
+        result = query.execute()
+        return result.data or []
+
+    except Exception:
+        return []
+
+
+def get_speaking_lab_tasks(module_id: str):
+    """Return the ordered tasks inside one Speaking Lab week."""
+    if db_supabase is None or not module_id:
+        return []
+
+    try:
+        result = (
+            db_supabase.table("speaking_lab_tasks")
+            .select("*")
+            .eq("module_id", module_id)
+            .eq("is_active", True)
+            .order("task_order")
+            .execute()
+        )
+
+        return result.data or []
+
+    except Exception:
+        return []
+
+
+def get_speaking_lab_progress(
+    student_id: str,
+    module_id: str,
+):
+    """Return saved progress for one student in one weekly lab."""
+    if db_supabase is None or not student_id or not module_id:
+        return []
+
+    try:
+        result = (
+            db_supabase.table("speaking_lab_progress")
+            .select("*")
+            .eq("student_id", student_id)
+            .eq("module_id", module_id)
+            .order("created_at")
+            .execute()
+        )
+
+        return result.data or []
+
+    except Exception:
+        return []
