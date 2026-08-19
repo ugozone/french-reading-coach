@@ -4307,33 +4307,1393 @@ with lab_tab:
 
                 elif task_type == "speaking_mission":
 
+                    st.markdown(
+                        "### 💬 Mission orale : Première rencontre"
+                    )
+
+                    st.write(
+                        "You are meeting a French-speaking person "
+                        "for the first time. Speak naturally for "
+                        "about 20–30 seconds. Do not read a complete "
+                        "script. Use the French you have practiced "
+                        "in Tasks 1–4."
+                    )
+
                     requirements = content.get(
                         "requirements",
                         [],
                     )
 
-                    if requirements:
-                        st.markdown(
-                            "#### 💬 Your mission must include"
+                    min_seconds = (
+                        content.get(
+                            "duration_seconds_min"
                         )
+                        or 20
+                    )
+
+                    max_seconds = (
+                        content.get(
+                            "duration_seconds_max"
+                        )
+                        or 30
+                    )
+
+                    # -------------------------------------
+                    # MISSION BRIEF
+                    # -------------------------------------
+
+                    st.markdown(
+                        "#### 🎯 Your mission"
+                    )
+
+                    if requirements:
 
                         for requirement in requirements:
                             st.write(
                                 f"• {requirement}"
                             )
 
-                    min_seconds = content.get(
-                        "duration_seconds_min"
+                    else:
+
+                        st.write(
+                            "• Greet the person."
+                        )
+                        st.write(
+                            "• Introduce yourself and ask "
+                            "the person's name."
+                        )
+                        st.write(
+                            "• Respond with Enchanté(e)."
+                        )
+                        st.write(
+                            "• End the interaction naturally."
+                        )
+
+                    st.info(
+                        f"⏱️ Target length: "
+                        f"{min_seconds}–{max_seconds} seconds"
                     )
 
-                    max_seconds = content.get(
-                        "duration_seconds_max"
+                    st.markdown(
+                        "#### 🧠 Cue card — no full script"
                     )
 
-                    if min_seconds and max_seconds:
-                        st.caption(
-                            f"Target speaking time: "
-                            f"{min_seconds}–{max_seconds} seconds"
+                    st.success(
+                        "👋 greeting → 👤 your name → "
+                        "❓ ask their name → 🤝 Enchanté(e) → "
+                        "👋 goodbye"
+                    )
+
+                    st.caption(
+                        "Look at the ideas, not complete sentences. "
+                        "The goal is to speak from what you now know."
+                    )
+
+
+                    # -------------------------------------
+                    # STUDENT NAME
+                    # -------------------------------------
+
+                    student_profile = (
+                        get_student(student_id)
+                        if student_id is not None
+                        else {}
+                    ) or {}
+
+                    profile_words = (
+                        student_profile.get(
+                            "full_name",
+                            "",
+                        )
+                        .strip()
+                        .split()
+                    )
+
+                    mission_first_name = (
+                        profile_words[0]
+                        if profile_words
+                        else "Camille"
+                    )
+
+
+                    # -------------------------------------
+                    # RESTORE SAVED MISSION STATE
+                    # -------------------------------------
+
+                    task5_state_key = (
+                        f"lab_task5_state_{task_id_string}"
+                    )
+
+                    saved_task5_row = (
+                        progress_by_task.get(
+                            task_id_string,
+                            {},
+                        )
+                    )
+
+                    saved_task5_metadata = (
+                        saved_task5_row.get(
+                            "metadata"
+                        )
+                        if isinstance(
+                            saved_task5_row,
+                            dict,
+                        )
+                        else {}
+                    ) or {}
+
+                    if (
+                        task5_state_key
+                        not in st.session_state
+                    ):
+
+                        st.session_state[
+                            task5_state_key
+                        ] = {
+                            "attempt_count": int(
+                                saved_task5_metadata.get(
+                                    "attempt_count",
+                                    0,
+                                )
+                            ),
+                            "best_mission_points": int(
+                                saved_task5_metadata.get(
+                                    "best_mission_points",
+                                    0,
+                                )
+                            ),
+                            "best_pronunciation_score": (
+                                saved_task5_metadata.get(
+                                    "best_pronunciation_score"
+                                )
+                            ),
+                            "baseline_attempt": (
+                                saved_task5_metadata.get(
+                                    "baseline_attempt"
+                                )
+                            ),
+                            "best_attempt": (
+                                saved_task5_metadata.get(
+                                    "best_attempt"
+                                )
+                            ),
+                            "latest_result": {},
+                        }
+
+                    task5_state = (
+                        st.session_state[
+                            task5_state_key
+                        ]
+                    )
+
+
+                    # -------------------------------------
+                    # CURRENT MISSION PROGRESS
+                    # -------------------------------------
+
+                    best_mission_points = int(
+                        task5_state.get(
+                            "best_mission_points",
+                            0,
+                        )
+                    )
+
+                    st.markdown("---")
+                    st.markdown(
+                        "### 📈 Mission progress"
+                    )
+
+                    st.progress(
+                        min(
+                            best_mission_points / 4,
+                            1.0,
+                        )
+                    )
+
+                    mp1, mp2, mp3 = st.columns(3)
+
+                    mp1.metric(
+                        "Communicative elements",
+                        f"{best_mission_points}/4",
+                    )
+
+                    mp2.metric(
+                        "Attempts",
+                        task5_state.get(
+                            "attempt_count",
+                            0,
+                        ),
+                    )
+
+                    best_pron = (
+                        task5_state.get(
+                            "best_pronunciation_score"
+                        )
+                    )
+
+                    mp3.metric(
+                        "Best pronunciation feedback",
+                        (
+                            f"{float(best_pron):.1f}/100"
+                            if best_pron is not None
+                            else "—"
+                        ),
+                    )
+
+                    st.caption(
+                        "Your 4 Task 5 points come from completing "
+                        "the four communicative parts of the mission. "
+                        "Pronunciation and fluency measurements are "
+                        "formative feedback."
+                    )
+
+
+                    # -------------------------------------
+                    # RECORD MISSION
+                    # -------------------------------------
+
+                    nonce_key = (
+                        f"lab_task5_nonce_"
+                        f"{task_id_string}"
+                    )
+
+                    nonce = st.session_state.get(
+                        nonce_key,
+                        0,
+                    )
+
+                    st.markdown("---")
+                    st.markdown(
+                        "### 🎤 Perform your mission"
+                    )
+
+                    mission_audio = st.audio_input(
+                        (
+                            "Record your 20–30 second "
+                            "first-meeting mission"
+                        ),
+                        key=(
+                            f"lab_task5_audio_"
+                            f"{task_id_string}_"
+                            f"{nonce}"
+                        ),
+                    )
+
+
+                    # -------------------------------------
+                    # ANALYZE MISSION
+                    # -------------------------------------
+
+                    if st.button(
+                        "✅ Analyze my mission",
+                        key=(
+                            f"lab_task5_analyze_"
+                            f"{task_id_string}_"
+                            f"{nonce}"
+                        ),
+                        use_container_width=True,
+                    ):
+
+                        if mission_audio is None:
+
+                            st.warning(
+                                "Record your mission first, "
+                                "then select Analyze my mission."
+                            )
+
+                        else:
+
+                            try:
+
+                                with tempfile.NamedTemporaryFile(
+                                    delete=False,
+                                    suffix=".wav",
+                                ) as tmp_wav:
+
+                                    tmp_wav.write(
+                                        mission_audio.read()
+                                    )
+
+                                    wav_path = (
+                                        tmp_wav.name
+                                    )
+
+
+                                # -------------------------
+                                # TRANSCRIPTION
+                                # -------------------------
+
+                                transcript = (
+                                    transcribe_audio_file(
+                                        wav_path
+                                    )
+                                )
+
+                                transcript = (
+                                    transcript or ""
+                                ).strip()
+
+                                normalized = (
+                                    normalize_simple(
+                                        transcript
+                                    )
+                                    .lower()
+                                    .strip()
+                                )
+
+
+                                # -------------------------
+                                # COMMUNICATIVE CHECK
+                                # -------------------------
+
+                                greeting_ok = (
+                                    "bonjour"
+                                    in normalized
+                                    or normalized.startswith(
+                                        "salut"
+                                    )
+                                )
+
+                                intro_ok = any(
+                                    phrase in normalized
+                                    for phrase in [
+                                        "je m appelle",
+                                        "moi c est",
+                                        "mon nom est",
+                                    ]
+                                )
+
+                                ask_name_ok = any(
+                                    phrase in normalized
+                                    for phrase in [
+                                        "comment tu t appelles",
+                                        "comment vous vous appelez",
+                                        "quel est ton nom",
+                                        "et toi",
+                                    ]
+                                )
+
+                                interaction_ok = (
+                                    intro_ok
+                                    and ask_name_ok
+                                )
+
+                                social_ok = any(
+                                    phrase in normalized
+                                    for phrase in [
+                                        "enchante",
+                                        "enchantee",
+                                    ]
+                                )
+
+                                stripped_norm = (
+                                    normalized.rstrip(
+                                        " .!?;:,"
+                                    )
+                                )
+
+                                goodbye_ok = (
+                                    "a bientot"
+                                    in normalized
+                                    or "au revoir"
+                                    in normalized
+                                    or "bonne journee"
+                                    in normalized
+                                    or stripped_norm.endswith(
+                                        "salut"
+                                    )
+                                )
+
+                                mission_checks = [
+                                    {
+                                        "label": (
+                                            "Saluer la personne"
+                                        ),
+                                        "passed": (
+                                            greeting_ok
+                                        ),
+                                        "example": (
+                                            "Bonjour ! / Salut !"
+                                        ),
+                                    },
+                                    {
+                                        "label": (
+                                            "Se présenter et "
+                                            "demander le nom"
+                                        ),
+                                        "passed": (
+                                            interaction_ok
+                                        ),
+                                        "example": (
+                                            "Je m’appelle… + "
+                                            "Comment tu t’appelles ?"
+                                        ),
+                                    },
+                                    {
+                                        "label": (
+                                            "Réagir socialement"
+                                        ),
+                                        "passed": (
+                                            social_ok
+                                        ),
+                                        "example": (
+                                            "Enchanté(e) !"
+                                        ),
+                                    },
+                                    {
+                                        "label": (
+                                            "Terminer "
+                                            "l’interaction"
+                                        ),
+                                        "passed": (
+                                            goodbye_ok
+                                        ),
+                                        "example": (
+                                            "À bientôt ! / "
+                                            "Au revoir !"
+                                        ),
+                                    },
+                                ]
+
+                                mission_points = sum(
+                                    1
+                                    for check
+                                    in mission_checks
+                                    if check["passed"]
+                                )
+
+
+                                # -------------------------
+                                # FLEXIBLE MODEL FOR
+                                # PRONUNCIATION FEEDBACK
+                                # -------------------------
+
+                                if (
+                                    normalized.startswith(
+                                        "salut"
+                                    )
+                                ):
+                                    model_greeting = (
+                                        "Salut !"
+                                    )
+                                else:
+                                    model_greeting = (
+                                        "Bonjour !"
+                                    )
+
+                                if (
+                                    "moi c est"
+                                    in normalized
+                                ):
+                                    model_intro = (
+                                        f"Moi, c’est "
+                                        f"{mission_first_name}."
+                                    )
+                                else:
+                                    model_intro = (
+                                        f"Je m’appelle "
+                                        f"{mission_first_name}."
+                                    )
+
+                                if (
+                                    "et toi"
+                                    in normalized
+                                ):
+                                    model_question = (
+                                        "Et toi ?"
+                                    )
+                                else:
+                                    model_question = (
+                                        "Comment tu "
+                                        "t’appelles ?"
+                                    )
+
+                                if (
+                                    "au revoir"
+                                    in normalized
+                                ):
+                                    model_goodbye = (
+                                        "Au revoir !"
+                                    )
+
+                                elif (
+                                    stripped_norm.endswith(
+                                        "salut"
+                                    )
+                                ):
+                                    model_goodbye = (
+                                        "Salut !"
+                                    )
+
+                                else:
+                                    model_goodbye = (
+                                        "À bientôt !"
+                                    )
+
+                                mission_reference = (
+                                    f"{model_greeting} "
+                                    f"{model_intro} "
+                                    f"{model_question} "
+                                    f"Enchanté ! "
+                                    f"{model_goodbye}"
+                                )
+
+
+                                # -------------------------
+                                # PRONUNCIATION FEEDBACK
+                                # -------------------------
+
+                                pronunciation_result = (
+                                    pronunciation_score(
+                                        mission_reference,
+                                        transcript,
+                                    )
+                                )
+
+                                feedback_data = (
+                                    word_feedback(
+                                        mission_reference,
+                                        transcript,
+                                    )
+                                )
+
+                                attempt_issue = (
+                                    detect_attempt_issue(
+                                        mission_reference,
+                                        transcript,
+                                        feedback_data,
+                                    )
+                                )
+
+                                try:
+                                    liaison_points = (
+                                        build_pronunciation_targets(
+                                            mission_reference,
+                                            None,
+                                        )
+                                    )
+                                except Exception:
+                                    liaison_points = []
+
+                                coaching_message = (
+                                    generate_coaching_message(
+                                        pronunciation_result,
+                                        feedback_data,
+                                        liaison_points,
+                                    )
+                                )
+
+
+                                # -------------------------
+                                # IPA
+                                # -------------------------
+
+                                try:
+                                    target_ipa = (
+                                        phonetic_transcription(
+                                            mission_reference
+                                        )
+                                    )
+                                except Exception:
+                                    target_ipa = ""
+
+                                try:
+                                    recognized_ipa = (
+                                        phonetic_transcription(
+                                            transcript
+                                        )
+                                    )
+                                except Exception:
+                                    recognized_ipa = ""
+
+
+                                # -------------------------
+                                # ACOUSTIC / FLUENCY
+                                # -------------------------
+
+                                try:
+                                    acoustic = (
+                                        analyze_speech_acoustics(
+                                            wav_path,
+                                            transcript=transcript,
+                                        )
+                                    )
+                                except Exception as exc:
+                                    acoustic = {
+                                        "analysis_error": (
+                                            str(exc)
+                                        )
+                                    }
+
+                                duration_s = (
+                                    acoustic.get(
+                                        "duration_s"
+                                    )
+                                    if isinstance(
+                                        acoustic,
+                                        dict,
+                                    )
+                                    else None
+                                )
+
+                                duration_ok = (
+                                    duration_s
+                                    is not None
+                                    and float(
+                                        min_seconds
+                                    )
+                                    <= float(
+                                        duration_s
+                                    )
+                                    <= float(
+                                        max_seconds
+                                    )
+                                )
+
+
+                                # -------------------------
+                                # UPDATE ATTEMPT STATE
+                                # -------------------------
+
+                                attempt_count = (
+                                    int(
+                                        task5_state.get(
+                                            "attempt_count",
+                                            0,
+                                        )
+                                    )
+                                    + 1
+                                )
+
+                                old_best_mission = int(
+                                    task5_state.get(
+                                        "best_mission_points",
+                                        0,
+                                    )
+                                )
+
+                                old_best_pron = (
+                                    task5_state.get(
+                                        "best_pronunciation_score"
+                                    )
+                                )
+
+                                best_mission_points = max(
+                                    old_best_mission,
+                                    mission_points,
+                                )
+
+                                if old_best_pron is None:
+                                    best_pronunciation = (
+                                        float(
+                                            pronunciation_result
+                                        )
+                                    )
+                                else:
+                                    best_pronunciation = (
+                                        max(
+                                            float(
+                                                old_best_pron
+                                            ),
+                                            float(
+                                                pronunciation_result
+                                            ),
+                                        )
+                                    )
+
+                                attempt_summary = {
+                                    "attempt_number": (
+                                        attempt_count
+                                    ),
+                                    "recognized_text": (
+                                        transcript
+                                    ),
+                                    "mission_points": (
+                                        mission_points
+                                    ),
+                                    "pronunciation_score": (
+                                        float(
+                                            pronunciation_result
+                                        )
+                                    ),
+                                    "duration_s": (
+                                        float(duration_s)
+                                        if duration_s
+                                        is not None
+                                        else None
+                                    ),
+                                    "duration_target_met": (
+                                        duration_ok
+                                    ),
+                                    "checks": [
+                                        {
+                                            "label": (
+                                                check[
+                                                    "label"
+                                                ]
+                                            ),
+                                            "passed": (
+                                                check[
+                                                    "passed"
+                                                ]
+                                            ),
+                                        }
+                                        for check
+                                        in mission_checks
+                                    ],
+                                    "timestamp": (
+                                        datetime.now()
+                                        .strftime(
+                                            "%Y-%m-%d "
+                                            "%H:%M:%S"
+                                        )
+                                    ),
+                                }
+
+                                if not task5_state.get(
+                                    "baseline_attempt"
+                                ):
+                                    task5_state[
+                                        "baseline_attempt"
+                                    ] = (
+                                        attempt_summary
+                                    )
+
+                                old_best_attempt = (
+                                    task5_state.get(
+                                        "best_attempt"
+                                    )
+                                )
+
+                                should_replace_best = (
+                                    old_best_attempt
+                                    is None
+                                    or mission_points
+                                    > int(
+                                        old_best_attempt.get(
+                                            "mission_points",
+                                            0,
+                                        )
+                                    )
+                                    or (
+                                        mission_points
+                                        == int(
+                                            old_best_attempt.get(
+                                                "mission_points",
+                                                0,
+                                            )
+                                        )
+                                        and float(
+                                            pronunciation_result
+                                        )
+                                        > float(
+                                            old_best_attempt.get(
+                                                "pronunciation_score",
+                                                0,
+                                            )
+                                        )
+                                    )
+                                )
+
+                                if should_replace_best:
+                                    task5_state[
+                                        "best_attempt"
+                                    ] = (
+                                        attempt_summary
+                                    )
+
+                                task5_state[
+                                    "attempt_count"
+                                ] = attempt_count
+
+                                task5_state[
+                                    "best_mission_points"
+                                ] = (
+                                    best_mission_points
+                                )
+
+                                task5_state[
+                                    "best_pronunciation_score"
+                                ] = (
+                                    best_pronunciation
+                                )
+
+                                task5_state[
+                                    "latest_result"
+                                ] = {
+                                    "recognized_text": (
+                                        transcript
+                                    ),
+                                    "mission_points": (
+                                        mission_points
+                                    ),
+                                    "checks": (
+                                        mission_checks
+                                    ),
+                                    "pronunciation_score": (
+                                        float(
+                                            pronunciation_result
+                                        )
+                                    ),
+                                    "feedback": (
+                                        feedback_data
+                                    ),
+                                    "attempt_issue": (
+                                        attempt_issue
+                                    ),
+                                    "coaching_message": (
+                                        coaching_message
+                                    ),
+                                    "reference_text": (
+                                        mission_reference
+                                    ),
+                                    "target_ipa": (
+                                        target_ipa
+                                    ),
+                                    "recognized_ipa": (
+                                        recognized_ipa
+                                    ),
+                                    "acoustic": (
+                                        acoustic
+                                    ),
+                                    "duration_s": (
+                                        duration_s
+                                    ),
+                                    "duration_ok": (
+                                        duration_ok
+                                    ),
+                                }
+
+                                st.session_state[
+                                    task5_state_key
+                                ] = task5_state
+
+
+                                # -------------------------
+                                # SAVE WEEKLY PROGRESS
+                                # -------------------------
+
+                                task_complete = (
+                                    best_mission_points
+                                    >= 4
+                                )
+
+                                if student_id is not None:
+
+                                    (
+                                        saved_ok,
+                                        saved_message,
+                                    ) = (
+                                        save_speaking_lab_task_progress(
+                                            student_id=student_id,
+                                            module_id=module_id,
+                                            task_id=task.get(
+                                                "id"
+                                            ),
+                                            status=(
+                                                "completed"
+                                                if task_complete
+                                                else "in_progress"
+                                            ),
+                                            score=float(
+                                                best_mission_points
+                                            ),
+                                            max_points=float(
+                                                task.get(
+                                                    "points"
+                                                )
+                                                or 4
+                                            ),
+                                            recognized_text=(
+                                                transcript
+                                            ),
+                                            feedback=(
+                                                f"{mission_points}/4 "
+                                                "communicative "
+                                                "requirements in "
+                                                "latest attempt. "
+                                                f"Pronunciation "
+                                                f"feedback: "
+                                                f"{float(pronunciation_result):.1f}/100."
+                                            ),
+                                            metadata={
+                                                "activity": (
+                                                    "speaking_mission"
+                                                ),
+                                                "attempt_count": (
+                                                    attempt_count
+                                                ),
+                                                "best_mission_points": (
+                                                    best_mission_points
+                                                ),
+                                                "best_pronunciation_score": (
+                                                    best_pronunciation
+                                                ),
+                                                "baseline_attempt": (
+                                                    task5_state.get(
+                                                        "baseline_attempt"
+                                                    )
+                                                ),
+                                                "latest_attempt": (
+                                                    attempt_summary
+                                                ),
+                                                "best_attempt": (
+                                                    task5_state.get(
+                                                        "best_attempt"
+                                                    )
+                                                ),
+                                                "duration_seconds_min": (
+                                                    min_seconds
+                                                ),
+                                                "duration_seconds_max": (
+                                                    max_seconds
+                                                ),
+                                                "mission_completed": (
+                                                    task_complete
+                                                ),
+                                            },
+                                        )
+                                    )
+
+                                    if not saved_ok:
+                                        st.error(
+                                            "Your mission was analyzed, "
+                                            "but Weekly Speaking Lab "
+                                            "progress could not be saved: "
+                                            + str(
+                                                saved_message
+                                            )
+                                        )
+
+                                st.rerun()
+
+                            except Exception as exc:
+
+                                st.error(
+                                    "Mission analysis failed: "
+                                    + str(exc)
+                                )
+
+
+                    # -------------------------------------
+                    # LATEST MISSION FEEDBACK
+                    # -------------------------------------
+
+                    latest_result = (
+                        task5_state.get(
+                            "latest_result"
+                        )
+                        or {}
+                    )
+
+                    if latest_result:
+
+                        st.markdown("---")
+
+                        st.markdown(
+                            "### 🧭 Mission feedback"
+                        )
+
+                        st.write(
+                            "**What the app heard:**"
+                        )
+
+                        st.info(
+                            latest_result.get(
+                                "recognized_text",
+                                "",
+                            )
+                            or "No speech recognized."
+                        )
+
+
+                        # -----------------------------
+                        # MISSION SCORECARD
+                        # -----------------------------
+
+                        st.markdown(
+                            "#### ✅ Communicative scorecard"
+                        )
+
+                        for check in latest_result.get(
+                            "checks",
+                            [],
+                        ):
+
+                            if check.get(
+                                "passed"
+                            ):
+
+                                st.success(
+                                    "✅ "
+                                    + check.get(
+                                        "label",
+                                        "",
+                                    )
+                                )
+
+                            else:
+
+                                st.error(
+                                    "❌ "
+                                    + check.get(
+                                        "label",
+                                        "",
+                                    )
+                                )
+
+                                st.caption(
+                                    "Try including: "
+                                    + check.get(
+                                        "example",
+                                        "",
+                                    )
+                                )
+
+
+                        # -----------------------------
+                        # METRICS
+                        # -----------------------------
+
+                        m1, m2, m3 = st.columns(3)
+
+                        m1.metric(
+                            "Mission elements",
+                            (
+                                f"{latest_result.get('mission_points', 0)}/4"
+                            ),
+                        )
+
+                        m2.metric(
+                            "Pronunciation feedback",
+                            (
+                                f"{float(latest_result.get('pronunciation_score', 0)):.1f}/100"
+                            ),
+                        )
+
+                        duration_value = (
+                            latest_result.get(
+                                "duration_s"
+                            )
+                        )
+
+                        m3.metric(
+                            "Duration",
+                            (
+                                f"{float(duration_value):.1f} s"
+                                if duration_value
+                                is not None
+                                else "—"
+                            ),
+                        )
+
+
+                        # -----------------------------
+                        # DURATION COACHING
+                        # -----------------------------
+
+                        if (
+                            duration_value
+                            is not None
+                        ):
+
+                            if latest_result.get(
+                                "duration_ok"
+                            ):
+
+                                st.success(
+                                    f"✅ Your mission is within "
+                                    f"the {min_seconds}–"
+                                    f"{max_seconds} second "
+                                    "practice target."
+                                )
+
+                            elif float(
+                                duration_value
+                            ) < float(
+                                min_seconds
+                            ):
+
+                                st.info(
+                                    "Your mission was shorter than "
+                                    "the target. Speak in complete "
+                                    "thought groups and include the "
+                                    "full interaction rather than "
+                                    "rushing through the expressions."
+                                )
+
+                            else:
+
+                                st.info(
+                                    "Your mission was longer than "
+                                    "the target. Try making the "
+                                    "interaction more concise and "
+                                    "continuous."
+                                )
+
+
+                        # -----------------------------
+                        # ATTEMPT ISSUE / COACHING
+                        # -----------------------------
+
+                        if latest_result.get(
+                            "attempt_issue"
+                        ):
+                            st.warning(
+                                latest_result[
+                                    "attempt_issue"
+                                ]
+                            )
+
+                        st.markdown(
+                            "#### 💡 Pronunciation & fluency coaching"
+                        )
+
+                        render_coaching_message(
+                            latest_result.get(
+                                "coaching_message",
+                                "Keep practicing.",
+                            )
+                        )
+
+
+                        # -----------------------------
+                        # WORD FEEDBACK
+                        # -----------------------------
+
+                        feedback_data = (
+                            latest_result.get(
+                                "feedback",
+                                [],
+                            )
+                        )
+
+                        if feedback_data:
+
+                            st.markdown(
+                                "#### 🔎 Word-by-word feedback"
+                            )
+
+                            st.markdown(
+                                render_colored_feedback_with_ipa(
+                                    feedback_data
+                                ),
+                                unsafe_allow_html=True,
+                            )
+
+
+                        # -----------------------------
+                        # IPA
+                        # -----------------------------
+
+                        with st.expander(
+                            "🔤 See IPA comparison"
+                        ):
+
+                            ipa1, ipa2 = (
+                                st.columns(2)
+                            )
+
+                            with ipa1:
+
+                                st.write(
+                                    "**Flexible target model**"
+                                )
+
+                                st.write(
+                                    latest_result.get(
+                                        "reference_text",
+                                        "",
+                                    )
+                                )
+
+                                st.code(
+                                    latest_result.get(
+                                        "target_ipa",
+                                        "",
+                                    ),
+                                    language=None,
+                                )
+
+                            with ipa2:
+
+                                st.write(
+                                    "**Recognized speech**"
+                                )
+
+                                st.code(
+                                    latest_result.get(
+                                        "recognized_ipa",
+                                        "",
+                                    ),
+                                    language=None,
+                                )
+
+                            st.caption(
+                                "The target model adapts to common "
+                                "Week 1 choices such as Bonjour/Salut, "
+                                "Je m’appelle/Moi, c’est, and "
+                                "À bientôt/Au revoir. The pronunciation "
+                                "score is therefore coaching feedback, "
+                                "not the Task 5 course grade."
+                            )
+
+
+                        # -----------------------------
+                        # ACOUSTIC / FLUENCY
+                        # -----------------------------
+
+                        acoustic = (
+                            latest_result.get(
+                                "acoustic",
+                                {},
+                            )
+                            or {}
+                        )
+
+                        with st.expander(
+                            "📊 See speech & fluency measures"
+                        ):
+
+                            if acoustic.get(
+                                "analysis_error"
+                            ):
+
+                                st.info(
+                                    "Detailed acoustic analysis "
+                                    "was not available for this "
+                                    "recording."
+                                )
+
+                            else:
+
+                                a1, a2, a3, a4 = (
+                                    st.columns(4)
+                                )
+
+                                a1.metric(
+                                    "Duration",
+                                    (
+                                        f"{acoustic.get('duration_s'):.2f} s"
+                                        if acoustic.get(
+                                            "duration_s"
+                                        )
+                                        is not None
+                                        else "—"
+                                    ),
+                                )
+
+                                a2.metric(
+                                    "Speech rate",
+                                    (
+                                        f"{acoustic.get('speech_rate_syll_s'):.2f} syll/s"
+                                        if acoustic.get(
+                                            "speech_rate_syll_s"
+                                        )
+                                        is not None
+                                        else "—"
+                                    ),
+                                )
+
+                                a3.metric(
+                                    "Mean F0",
+                                    (
+                                        f"{acoustic.get('f0_mean_hz'):.1f} Hz"
+                                        if acoustic.get(
+                                            "f0_mean_hz"
+                                        )
+                                        is not None
+                                        else "—"
+                                    ),
+                                )
+
+                                a4.metric(
+                                    "Final pitch",
+                                    acoustic.get(
+                                        "final_pitch_direction",
+                                        "—",
+                                    ),
+                                )
+
+                                st.caption(
+                                    "These measures help you notice "
+                                    "pacing and prosodic development. "
+                                    "They are not used as automatic "
+                                    "Blackboard grades."
+                                )
+
+
+                    # -------------------------------------
+                    # RETRY MISSION
+                    # -------------------------------------
+
+                    if task5_state.get(
+                        "attempt_count",
+                        0,
+                    ) > 0:
+
+                        if st.button(
+                            "🔄 Try the mission again",
+                            key=(
+                                f"lab_task5_retry_"
+                                f"{task_id_string}_"
+                                f"{nonce}"
+                            ),
+                            use_container_width=True,
+                        ):
+
+                            st.session_state[
+                                nonce_key
+                            ] = nonce + 1
+
+                            st.rerun()
+
+
+                    # -------------------------------------
+                    # TASK COMPLETION
+                    # -------------------------------------
+
+                    best_mission_points = int(
+                        task5_state.get(
+                            "best_mission_points",
+                            0,
+                        )
+                    )
+
+                    if best_mission_points >= 4:
+
+                        st.success(
+                            "🎉 Task 5 complete! Your first-meeting "
+                            "mission contains all four required "
+                            "communicative elements. Your best "
+                            "performance has been saved for Task 6."
+                        )
+
+                        st.info(
+                            "Next: open 🔄 Task 6 — Réessaie & "
+                            "améliore. You will choose one thing "
+                            "to improve, make another attempt, and "
+                            "compare it with this mission."
+                        )
+
+                    elif (
+                        task5_state.get(
+                            "attempt_count",
+                            0,
+                        )
+                        > 0
+                    ):
+
+                        remaining = (
+                            4 - best_mission_points
+                        )
+
+                        st.info(
+                            f"You have {best_mission_points}/4 "
+                            f"communicative elements. Improve "
+                            f"{remaining} more element"
+                            f"{'' if remaining == 1 else 's'} "
+                            "to complete Task 5."
                         )
 
 
