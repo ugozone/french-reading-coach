@@ -5703,32 +5703,1633 @@ with lab_tab:
 
                 elif task_type == "retry_reflection":
 
-                    choices = content.get(
-                        "improvement_choices",
-                        [],
+                    st.markdown(
+                        "### 🔄 Réessaie & améliore"
                     )
 
-                    if choices:
-                        st.markdown(
-                            "#### 🎯 Choose one improvement goal"
+                    st.write(
+                        "Return to your first speaking performance, "
+                        "choose one thing to improve, make a new "
+                        "recording, and compare the two performances."
+                    )
+
+                    # =====================================
+                    # LOCATE TASK 5 PERFORMANCE
+                    # =====================================
+
+                    task5_task = next(
+                        (
+                            item
+                            for item in speaking_tasks
+                            if item.get("task_type")
+                            == "speaking_mission"
+                        ),
+                        None,
+                    )
+
+                    task5_id_string = (
+                        str(task5_task.get("id"))
+                        if task5_task
+                        else ""
+                    )
+
+                    task5_saved_row = (
+                        progress_by_task.get(
+                            task5_id_string,
+                            {},
+                        )
+                        if task5_id_string
+                        else {}
+                    )
+
+                    task5_metadata = (
+                        task5_saved_row.get(
+                            "metadata"
+                        )
+                        if isinstance(
+                            task5_saved_row,
+                            dict,
+                        )
+                        else {}
+                    ) or {}
+
+                    # Also check the current session in case
+                    # Task 5 was just completed.
+                    task5_session_state = {}
+
+                    if task5_id_string:
+                        task5_session_state = (
+                            st.session_state.get(
+                                f"lab_task5_state_"
+                                f"{task5_id_string}",
+                                {},
+                            )
+                            or {}
                         )
 
-                        for choice in choices:
-                            st.write(
-                                f"• {choice}"
+                    baseline_attempt = (
+                        task5_session_state.get(
+                            "baseline_attempt"
+                        )
+                        or task5_metadata.get(
+                            "baseline_attempt"
+                        )
+                    )
+
+                    task5_best_attempt = (
+                        task5_session_state.get(
+                            "best_attempt"
+                        )
+                        or task5_metadata.get(
+                            "best_attempt"
+                        )
+                    )
+
+                    # If an older Task 5 record does not
+                    # contain baseline_attempt, use its best
+                    # saved attempt as the comparison source.
+                    if baseline_attempt is None:
+                        baseline_attempt = (
+                            task5_best_attempt
+                        )
+
+                    task5_is_completed = (
+                        task5_saved_row.get("status")
+                        == "completed"
+                        or int(
+                            task5_session_state.get(
+                                "best_mission_points",
+                                0,
+                            )
+                        )
+                        >= 4
+                    )
+
+
+                    # =====================================
+                    # TASK 5 MUST COME FIRST
+                    # =====================================
+
+                    if baseline_attempt is None:
+
+                        st.warning(
+                            "Complete Task 5 — Mission orale "
+                            "before starting this improvement task. "
+                            "Task 6 needs your earlier performance "
+                            "so it can compare Attempt 1 and Attempt 2."
+                        )
+
+                    else:
+
+                        if not task5_is_completed:
+                            st.warning(
+                                "Your Task 5 mission is still "
+                                "in progress. Complete the four "
+                                "communicative requirements there "
+                                "before finishing Task 6."
                             )
 
-                    reflection_prompt = content.get(
-                        "reflection_prompt"
-                    )
 
-                    if reflection_prompt:
+                        # =================================
+                        # RESTORE TASK 6 STATE
+                        # =================================
+
+                        task6_state_key = (
+                            f"lab_task6_state_"
+                            f"{task_id_string}"
+                        )
+
+                        saved_task6_row = (
+                            progress_by_task.get(
+                                task_id_string,
+                                {},
+                            )
+                        )
+
+                        saved_task6_metadata = (
+                            saved_task6_row.get(
+                                "metadata"
+                            )
+                            if isinstance(
+                                saved_task6_row,
+                                dict,
+                            )
+                            else {}
+                        ) or {}
+
+                        if (
+                            task6_state_key
+                            not in st.session_state
+                        ):
+
+                            st.session_state[
+                                task6_state_key
+                            ] = {
+                                "selected_goal": (
+                                    saved_task6_metadata.get(
+                                        "selected_goal",
+                                        "",
+                                    )
+                                ),
+                                "retry_done": bool(
+                                    saved_task6_metadata.get(
+                                        "retry_done",
+                                        False,
+                                    )
+                                ),
+                                "reflection_done": bool(
+                                    saved_task6_metadata.get(
+                                        "reflection_done",
+                                        False,
+                                    )
+                                ),
+                                "improvement_attempt": (
+                                    saved_task6_metadata.get(
+                                        "improvement_attempt"
+                                    )
+                                ),
+                                "comparison": (
+                                    saved_task6_metadata.get(
+                                        "comparison"
+                                    )
+                                ),
+                                "reflection_text": (
+                                    saved_task6_metadata.get(
+                                        "reflection_text",
+                                        "",
+                                    )
+                                ),
+                            }
+
+                        task6_state = (
+                            st.session_state[
+                                task6_state_key
+                            ]
+                        )
+
+
+                        # =================================
+                        # ATTEMPT 1 — SHOW BASELINE
+                        # =================================
+
+                        st.markdown("---")
+
                         st.markdown(
-                            "#### ✍️ Reflection"
+                            "## 1️⃣ Review Attempt 1"
                         )
+
+                        baseline_points = int(
+                            baseline_attempt.get(
+                                "mission_points",
+                                0,
+                            )
+                        )
+
+                        baseline_pron = float(
+                            baseline_attempt.get(
+                                "pronunciation_score",
+                                0,
+                            )
+                            or 0
+                        )
+
+                        baseline_duration = (
+                            baseline_attempt.get(
+                                "duration_s"
+                            )
+                        )
+
+                        b1, b2, b3 = st.columns(3)
+
+                        b1.metric(
+                            "Communicative elements",
+                            f"{baseline_points}/4",
+                        )
+
+                        b2.metric(
+                            "Pronunciation feedback",
+                            f"{baseline_pron:.1f}/100",
+                        )
+
+                        b3.metric(
+                            "Duration",
+                            (
+                                f"{float(baseline_duration):.1f} s"
+                                if baseline_duration
+                                is not None
+                                else "—"
+                            ),
+                        )
+
+                        baseline_transcript = (
+                            baseline_attempt.get(
+                                "recognized_text",
+                                ""
+                            )
+                        )
+
+                        if baseline_transcript:
+
+                            with st.expander(
+                                "📝 See what the app heard "
+                                "in Attempt 1"
+                            ):
+
+                                st.write(
+                                    baseline_transcript
+                                )
+
+
+                        baseline_checks = (
+                            baseline_attempt.get(
+                                "checks",
+                                [],
+                            )
+                            or []
+                        )
+
+                        if baseline_checks:
+
+                            st.markdown(
+                                "#### Attempt 1 mission elements"
+                            )
+
+                            for item in baseline_checks:
+
+                                if item.get("passed"):
+
+                                    st.write(
+                                        "✅ "
+                                        + item.get(
+                                            "label",
+                                            "",
+                                        )
+                                    )
+
+                                else:
+
+                                    st.write(
+                                        "❌ "
+                                        + item.get(
+                                            "label",
+                                            "",
+                                        )
+                                    )
+
+
+                        # =================================
+                        # CHOOSE IMPROVEMENT GOAL
+                        # =================================
+
+                        st.markdown("---")
+
+                        st.markdown(
+                            "## 2️⃣ Choose one improvement goal"
+                        )
+
+                        choices = content.get(
+                            "improvement_choices",
+                            [],
+                        )
+
+                        if not choices:
+                            choices = [
+                                (
+                                    "Speak more clearly and "
+                                    "improve pronunciation"
+                                ),
+                                (
+                                    "Include all required "
+                                    "communicative expressions"
+                                ),
+                                (
+                                    "Speak more smoothly with "
+                                    "fewer hesitations"
+                                ),
+                                (
+                                    "Improve rhythm and "
+                                    "intonation"
+                                ),
+                                (
+                                    "Stay closer to the "
+                                    "20–30 second target"
+                                ),
+                            ]
+
+                        saved_goal = (
+                            task6_state.get(
+                                "selected_goal"
+                            )
+                        )
+
+                        goal_index = 0
+
+                        if saved_goal in choices:
+                            goal_index = (
+                                choices.index(
+                                    saved_goal
+                                )
+                            )
+
+                        selected_goal = st.radio(
+                            (
+                                "What will you try to improve "
+                                "in Attempt 2?"
+                            ),
+                            choices,
+                            index=goal_index,
+                            key=(
+                                f"lab_task6_goal_"
+                                f"{task_id_string}"
+                            ),
+                        )
+
+                        task6_state[
+                            "selected_goal"
+                        ] = selected_goal
+
+                        st.session_state[
+                            task6_state_key
+                        ] = task6_state
+
+                        st.info(
+                            "🎯 Your goal: "
+                            + str(selected_goal)
+                        )
+
+
+                        # =================================
+                        # ATTEMPT 2 — CUE CARD
+                        # =================================
+
+                        st.markdown("---")
+
+                        st.markdown(
+                            "## 3️⃣ Make Attempt 2"
+                        )
+
                         st.write(
-                            reflection_prompt
+                            "Perform the first-meeting mission "
+                            "again. Keep your improvement goal "
+                            "in mind. Do not read a full script."
                         )
+
+                        st.success(
+                            "👋 greeting → 👤 your name → "
+                            "❓ ask their name → "
+                            "🤝 Enchanté(e) → 👋 goodbye"
+                        )
+
+                        st.caption(
+                            "Target: approximately 20–30 seconds."
+                        )
+
+
+                        # Student name for flexible
+                        # pronunciation reference.
+                        student_profile = (
+                            get_student(student_id)
+                            if student_id is not None
+                            else {}
+                        ) or {}
+
+                        profile_words = (
+                            student_profile.get(
+                                "full_name",
+                                "",
+                            )
+                            .strip()
+                            .split()
+                        )
+
+                        retry_first_name = (
+                            profile_words[0]
+                            if profile_words
+                            else "Camille"
+                        )
+
+
+                        # =================================
+                        # RECORDING
+                        # =================================
+
+                        nonce_key = (
+                            f"lab_task6_nonce_"
+                            f"{task_id_string}"
+                        )
+
+                        nonce = st.session_state.get(
+                            nonce_key,
+                            0,
+                        )
+
+                        retry_audio = st.audio_input(
+                            "🎤 Record Attempt 2",
+                            key=(
+                                f"lab_task6_audio_"
+                                f"{task_id_string}_"
+                                f"{nonce}"
+                            ),
+                        )
+
+
+                        if st.button(
+                            "✅ Analyze Attempt 2",
+                            key=(
+                                f"lab_task6_analyze_"
+                                f"{task_id_string}_"
+                                f"{nonce}"
+                            ),
+                            use_container_width=True,
+                        ):
+
+                            if retry_audio is None:
+
+                                st.warning(
+                                    "Record Attempt 2 first."
+                                )
+
+                            else:
+
+                                try:
+
+                                    with tempfile.NamedTemporaryFile(
+                                        delete=False,
+                                        suffix=".wav",
+                                    ) as tmp_wav:
+
+                                        tmp_wav.write(
+                                            retry_audio.read()
+                                        )
+
+                                        wav_path = (
+                                            tmp_wav.name
+                                        )
+
+
+                                    # ---------------------
+                                    # TRANSCRIBE
+                                    # ---------------------
+
+                                    transcript = (
+                                        transcribe_audio_file(
+                                            wav_path
+                                        )
+                                        or ""
+                                    ).strip()
+
+                                    normalized = (
+                                        normalize_simple(
+                                            transcript
+                                        )
+                                        .lower()
+                                        .strip()
+                                    )
+
+
+                                    # ---------------------
+                                    # COMMUNICATIVE CHECK
+                                    # ---------------------
+
+                                    greeting_ok = (
+                                        "bonjour"
+                                        in normalized
+                                        or normalized.startswith(
+                                            "salut"
+                                        )
+                                    )
+
+                                    intro_ok = any(
+                                        phrase in normalized
+                                        for phrase in [
+                                            "je m appelle",
+                                            "moi c est",
+                                            "mon nom est",
+                                        ]
+                                    )
+
+                                    ask_name_ok = any(
+                                        phrase in normalized
+                                        for phrase in [
+                                            (
+                                                "comment tu "
+                                                "t appelles"
+                                            ),
+                                            (
+                                                "comment vous "
+                                                "vous appelez"
+                                            ),
+                                            "quel est ton nom",
+                                            "et toi",
+                                        ]
+                                    )
+
+                                    interaction_ok = (
+                                        intro_ok
+                                        and ask_name_ok
+                                    )
+
+                                    social_ok = any(
+                                        phrase in normalized
+                                        for phrase in [
+                                            "enchante",
+                                            "enchantee",
+                                        ]
+                                    )
+
+                                    stripped_norm = (
+                                        normalized.rstrip(
+                                            " .!?;:,"
+                                        )
+                                    )
+
+                                    goodbye_ok = (
+                                        "a bientot"
+                                        in normalized
+                                        or "au revoir"
+                                        in normalized
+                                        or "bonne journee"
+                                        in normalized
+                                        or stripped_norm.endswith(
+                                            "salut"
+                                        )
+                                    )
+
+                                    retry_checks = [
+                                        {
+                                            "label": (
+                                                "Saluer la personne"
+                                            ),
+                                            "passed": (
+                                                greeting_ok
+                                            ),
+                                        },
+                                        {
+                                            "label": (
+                                                "Se présenter et "
+                                                "demander le nom"
+                                            ),
+                                            "passed": (
+                                                interaction_ok
+                                            ),
+                                        },
+                                        {
+                                            "label": (
+                                                "Réagir socialement"
+                                            ),
+                                            "passed": (
+                                                social_ok
+                                            ),
+                                        },
+                                        {
+                                            "label": (
+                                                "Terminer "
+                                                "l’interaction"
+                                            ),
+                                            "passed": (
+                                                goodbye_ok
+                                            ),
+                                        },
+                                    ]
+
+                                    retry_points = sum(
+                                        1
+                                        for check
+                                        in retry_checks
+                                        if check.get(
+                                            "passed"
+                                        )
+                                    )
+
+
+                                    # ---------------------
+                                    # FLEXIBLE REFERENCE
+                                    # ---------------------
+
+                                    if normalized.startswith(
+                                        "salut"
+                                    ):
+                                        model_greeting = (
+                                            "Salut !"
+                                        )
+                                    else:
+                                        model_greeting = (
+                                            "Bonjour !"
+                                        )
+
+                                    if (
+                                        "moi c est"
+                                        in normalized
+                                    ):
+                                        model_intro = (
+                                            f"Moi, c’est "
+                                            f"{retry_first_name}."
+                                        )
+                                    else:
+                                        model_intro = (
+                                            f"Je m’appelle "
+                                            f"{retry_first_name}."
+                                        )
+
+                                    if "et toi" in normalized:
+                                        model_question = (
+                                            "Et toi ?"
+                                        )
+                                    else:
+                                        model_question = (
+                                            "Comment tu "
+                                            "t’appelles ?"
+                                        )
+
+                                    if (
+                                        "au revoir"
+                                        in normalized
+                                    ):
+                                        model_goodbye = (
+                                            "Au revoir !"
+                                        )
+
+                                    elif (
+                                        stripped_norm.endswith(
+                                            "salut"
+                                        )
+                                    ):
+                                        model_goodbye = (
+                                            "Salut !"
+                                        )
+
+                                    else:
+                                        model_goodbye = (
+                                            "À bientôt !"
+                                        )
+
+                                    retry_reference = (
+                                        f"{model_greeting} "
+                                        f"{model_intro} "
+                                        f"{model_question} "
+                                        f"Enchanté ! "
+                                        f"{model_goodbye}"
+                                    )
+
+
+                                    # ---------------------
+                                    # PRONUNCIATION
+                                    # ---------------------
+
+                                    retry_pron = (
+                                        pronunciation_score(
+                                            retry_reference,
+                                            transcript,
+                                        )
+                                    )
+
+                                    feedback_data = (
+                                        word_feedback(
+                                            retry_reference,
+                                            transcript,
+                                        )
+                                    )
+
+                                    try:
+                                        liaison_points = (
+                                            build_pronunciation_targets(
+                                                retry_reference,
+                                                None,
+                                            )
+                                        )
+                                    except Exception:
+                                        liaison_points = []
+
+                                    coaching_message = (
+                                        generate_coaching_message(
+                                            retry_pron,
+                                            feedback_data,
+                                            liaison_points,
+                                        )
+                                    )
+
+                                    attempt_issue = (
+                                        detect_attempt_issue(
+                                            retry_reference,
+                                            transcript,
+                                            feedback_data,
+                                        )
+                                    )
+
+
+                                    # ---------------------
+                                    # IPA
+                                    # ---------------------
+
+                                    try:
+                                        target_ipa = (
+                                            phonetic_transcription(
+                                                retry_reference
+                                            )
+                                        )
+                                    except Exception:
+                                        target_ipa = ""
+
+                                    try:
+                                        recognized_ipa = (
+                                            phonetic_transcription(
+                                                transcript
+                                            )
+                                        )
+                                    except Exception:
+                                        recognized_ipa = ""
+
+
+                                    # ---------------------
+                                    # ACOUSTIC / DURATION
+                                    # ---------------------
+
+                                    try:
+                                        acoustic = (
+                                            analyze_speech_acoustics(
+                                                wav_path,
+                                                transcript=transcript,
+                                            )
+                                        )
+                                    except Exception as exc:
+                                        acoustic = {
+                                            "analysis_error": (
+                                                str(exc)
+                                            )
+                                        }
+
+                                    retry_duration = (
+                                        acoustic.get(
+                                            "duration_s"
+                                        )
+                                        if isinstance(
+                                            acoustic,
+                                            dict,
+                                        )
+                                        else None
+                                    )
+
+                                    retry_speech_rate = (
+                                        acoustic.get(
+                                            "speech_rate_syll_s"
+                                        )
+                                        if isinstance(
+                                            acoustic,
+                                            dict,
+                                        )
+                                        else None
+                                    )
+
+
+                                    # ---------------------
+                                    # BUILD COMPARISON
+                                    # ---------------------
+
+                                    mission_delta = (
+                                        int(retry_points)
+                                        - int(
+                                            baseline_points
+                                        )
+                                    )
+
+                                    pronunciation_delta = (
+                                        float(
+                                            retry_pron
+                                        )
+                                        - float(
+                                            baseline_pron
+                                        )
+                                    )
+
+                                    duration_delta = None
+
+                                    if (
+                                        baseline_duration
+                                        is not None
+                                        and retry_duration
+                                        is not None
+                                    ):
+                                        duration_delta = (
+                                            float(
+                                                retry_duration
+                                            )
+                                            - float(
+                                                baseline_duration
+                                            )
+                                        )
+
+                                    baseline_check_map = {
+                                        item.get(
+                                            "label",
+                                            ""
+                                        ): bool(
+                                            item.get(
+                                                "passed"
+                                            )
+                                        )
+                                        for item
+                                        in baseline_checks
+                                    }
+
+                                    comparison_rows = []
+
+                                    for check in retry_checks:
+
+                                        label = (
+                                            check.get(
+                                                "label",
+                                                "",
+                                            )
+                                        )
+
+                                        before_passed = (
+                                            baseline_check_map.get(
+                                                label,
+                                                False,
+                                            )
+                                        )
+
+                                        after_passed = (
+                                            bool(
+                                                check.get(
+                                                    "passed"
+                                                )
+                                            )
+                                        )
+
+                                        comparison_rows.append({
+                                            "label": label,
+                                            "before": (
+                                                before_passed
+                                            ),
+                                            "after": (
+                                                after_passed
+                                            ),
+                                            "improved": (
+                                                (
+                                                    not before_passed
+                                                )
+                                                and after_passed
+                                            ),
+                                        })
+
+
+                                    improvement_attempt = {
+                                        "recognized_text": (
+                                            transcript
+                                        ),
+                                        "mission_points": (
+                                            retry_points
+                                        ),
+                                        "pronunciation_score": (
+                                            float(
+                                                retry_pron
+                                            )
+                                        ),
+                                        "duration_s": (
+                                            float(
+                                                retry_duration
+                                            )
+                                            if retry_duration
+                                            is not None
+                                            else None
+                                        ),
+                                        "speech_rate_syll_s": (
+                                            float(
+                                                retry_speech_rate
+                                            )
+                                            if retry_speech_rate
+                                            is not None
+                                            else None
+                                        ),
+                                        "checks": (
+                                            retry_checks
+                                        ),
+                                        "reference_text": (
+                                            retry_reference
+                                        ),
+                                        "target_ipa": (
+                                            target_ipa
+                                        ),
+                                        "recognized_ipa": (
+                                            recognized_ipa
+                                        ),
+                                        "feedback": (
+                                            feedback_data
+                                        ),
+                                        "coaching_message": (
+                                            coaching_message
+                                        ),
+                                        "attempt_issue": (
+                                            attempt_issue
+                                        ),
+                                    }
+
+                                    comparison = {
+                                        "mission_delta": (
+                                            mission_delta
+                                        ),
+                                        "pronunciation_delta": (
+                                            round(
+                                                pronunciation_delta,
+                                                2,
+                                            )
+                                        ),
+                                        "duration_delta": (
+                                            round(
+                                                duration_delta,
+                                                2,
+                                            )
+                                            if duration_delta
+                                            is not None
+                                            else None
+                                        ),
+                                        "requirements": (
+                                            comparison_rows
+                                        ),
+                                    }
+
+                                    task6_state[
+                                        "retry_done"
+                                    ] = True
+
+                                    task6_state[
+                                        "improvement_attempt"
+                                    ] = (
+                                        improvement_attempt
+                                    )
+
+                                    task6_state[
+                                        "comparison"
+                                    ] = comparison
+
+                                    task6_state[
+                                        "selected_goal"
+                                    ] = selected_goal
+
+                                    st.session_state[
+                                        task6_state_key
+                                    ] = task6_state
+
+
+                                    # ---------------------
+                                    # SAVE AS IN PROGRESS
+                                    # ---------------------
+
+                                    if student_id is not None:
+
+                                        (
+                                            saved_ok,
+                                            saved_message,
+                                        ) = (
+                                            save_speaking_lab_task_progress(
+                                                student_id=student_id,
+                                                module_id=module_id,
+                                                task_id=task.get(
+                                                    "id"
+                                                ),
+                                                status="in_progress",
+                                                score=1.0,
+                                                max_points=float(
+                                                    task.get(
+                                                        "points"
+                                                    )
+                                                    or 2
+                                                ),
+                                                recognized_text=(
+                                                    transcript
+                                                ),
+                                                feedback=(
+                                                    "Improvement "
+                                                    "attempt analyzed. "
+                                                    "Complete the "
+                                                    "reflection to "
+                                                    "finish Task 6."
+                                                ),
+                                                metadata={
+                                                    "activity": (
+                                                        "retry_reflection"
+                                                    ),
+                                                    "selected_goal": (
+                                                        selected_goal
+                                                    ),
+                                                    "retry_done": True,
+                                                    "reflection_done": (
+                                                        False
+                                                    ),
+                                                    "baseline_attempt": (
+                                                        baseline_attempt
+                                                    ),
+                                                    "improvement_attempt": (
+                                                        improvement_attempt
+                                                    ),
+                                                    "comparison": (
+                                                        comparison
+                                                    ),
+                                                    "reflection_text": (
+                                                        task6_state.get(
+                                                            "reflection_text",
+                                                            "",
+                                                        )
+                                                    ),
+                                                },
+                                            )
+                                        )
+
+                                        if not saved_ok:
+
+                                            st.error(
+                                                "Attempt 2 was "
+                                                "analyzed, but "
+                                                "progress could "
+                                                "not be saved: "
+                                                + str(
+                                                    saved_message
+                                                )
+                                            )
+
+                                    st.rerun()
+
+                                except Exception as exc:
+
+                                    st.error(
+                                        "Attempt 2 analysis failed: "
+                                        + str(exc)
+                                    )
+
+
+                        # =================================
+                        # SIDE-BY-SIDE COMPARISON
+                        # =================================
+
+                        improvement_attempt = (
+                            task6_state.get(
+                                "improvement_attempt"
+                            )
+                            or {}
+                        )
+
+                        comparison = (
+                            task6_state.get(
+                                "comparison"
+                            )
+                            or {}
+                        )
+
+                        if improvement_attempt:
+
+                            st.markdown("---")
+
+                            st.markdown(
+                                "## 4️⃣ Compare the two performances"
+                            )
+
+                            after_points = int(
+                                improvement_attempt.get(
+                                    "mission_points",
+                                    0,
+                                )
+                            )
+
+                            after_pron = float(
+                                improvement_attempt.get(
+                                    "pronunciation_score",
+                                    0,
+                                )
+                                or 0
+                            )
+
+                            after_duration = (
+                                improvement_attempt.get(
+                                    "duration_s"
+                                )
+                            )
+
+                            st.markdown(
+                                "### 📊 Before → After"
+                            )
+
+                            c1, c2, c3 = st.columns(3)
+
+                            with c1:
+
+                                st.metric(
+                                    "Communicative elements",
+                                    f"{after_points}/4",
+                                    delta=(
+                                        comparison.get(
+                                            "mission_delta",
+                                            0,
+                                        )
+                                    ),
+                                )
+
+                                st.caption(
+                                    f"Attempt 1: "
+                                    f"{baseline_points}/4"
+                                )
+
+                            with c2:
+
+                                st.metric(
+                                    "Pronunciation feedback",
+                                    f"{after_pron:.1f}/100",
+                                    delta=(
+                                        f"{float(comparison.get('pronunciation_delta', 0)):+.1f}"
+                                    ),
+                                )
+
+                                st.caption(
+                                    f"Attempt 1: "
+                                    f"{baseline_pron:.1f}/100"
+                                )
+
+                            with c3:
+
+                                if after_duration is not None:
+
+                                    duration_delta = (
+                                        comparison.get(
+                                            "duration_delta"
+                                        )
+                                    )
+
+                                    st.metric(
+                                        "Duration",
+                                        (
+                                            f"{float(after_duration):.1f} s"
+                                        ),
+                                        delta=(
+                                            f"{float(duration_delta):+.1f} s"
+                                            if duration_delta
+                                            is not None
+                                            else None
+                                        ),
+                                    )
+
+                                    st.caption(
+                                        (
+                                            f"Attempt 1: "
+                                            f"{float(baseline_duration):.1f} s"
+                                        )
+                                        if baseline_duration
+                                        is not None
+                                        else (
+                                            "Attempt 1: —"
+                                        )
+                                    )
+
+                                else:
+
+                                    st.metric(
+                                        "Duration",
+                                        "—",
+                                    )
+
+
+                            # -------------------------
+                            # REQUIREMENT COMPARISON
+                            # -------------------------
+
+                            st.markdown(
+                                "#### 🎯 Communicative comparison"
+                            )
+
+                            for row in comparison.get(
+                                "requirements",
+                                [],
+                            ):
+
+                                before_mark = (
+                                    "✅"
+                                    if row.get(
+                                        "before"
+                                    )
+                                    else "❌"
+                                )
+
+                                after_mark = (
+                                    "✅"
+                                    if row.get(
+                                        "after"
+                                    )
+                                    else "❌"
+                                )
+
+                                st.write(
+                                    f"**{row.get('label', '')}:** "
+                                    f"{before_mark} → "
+                                    f"{after_mark}"
+                                )
+
+                                if row.get(
+                                    "improved"
+                                ):
+
+                                    st.success(
+                                        "Improved in Attempt 2."
+                                    )
+
+
+                            # -------------------------
+                            # TRANSCRIPTS
+                            # -------------------------
+
+                            with st.expander(
+                                "📝 Compare what the app heard"
+                            ):
+
+                                left, right = (
+                                    st.columns(2)
+                                )
+
+                                with left:
+
+                                    st.markdown(
+                                        "**Attempt 1**"
+                                    )
+
+                                    st.write(
+                                        baseline_attempt.get(
+                                            "recognized_text",
+                                            "",
+                                        )
+                                        or (
+                                            "No transcript "
+                                            "available."
+                                        )
+                                    )
+
+                                with right:
+
+                                    st.markdown(
+                                        "**Attempt 2**"
+                                    )
+
+                                    st.write(
+                                        improvement_attempt.get(
+                                            "recognized_text",
+                                            "",
+                                        )
+                                        or (
+                                            "No transcript "
+                                            "available."
+                                        )
+                                    )
+
+
+                            # -------------------------
+                            # COACHING
+                            # -------------------------
+
+                            st.markdown(
+                                "#### 💡 Attempt 2 coaching"
+                            )
+
+                            if improvement_attempt.get(
+                                "attempt_issue"
+                            ):
+
+                                st.warning(
+                                    improvement_attempt.get(
+                                        "attempt_issue"
+                                    )
+                                )
+
+                            render_coaching_message(
+                                improvement_attempt.get(
+                                    "coaching_message",
+                                    "Keep practicing.",
+                                )
+                            )
+
+
+                            feedback_data = (
+                                improvement_attempt.get(
+                                    "feedback",
+                                    [],
+                                )
+                            )
+
+                            if feedback_data:
+
+                                with st.expander(
+                                    "🔎 See Attempt 2 "
+                                    "word-by-word feedback"
+                                ):
+
+                                    st.markdown(
+                                        render_colored_feedback_with_ipa(
+                                            feedback_data
+                                        ),
+                                        unsafe_allow_html=True,
+                                    )
+
+
+                            with st.expander(
+                                "🔤 See Attempt 2 IPA"
+                            ):
+
+                                ip1, ip2 = st.columns(2)
+
+                                with ip1:
+
+                                    st.write(
+                                        "**Flexible target IPA**"
+                                    )
+
+                                    st.code(
+                                        improvement_attempt.get(
+                                            "target_ipa",
+                                            "",
+                                        ),
+                                        language=None,
+                                    )
+
+                                with ip2:
+
+                                    st.write(
+                                        "**Recognized speech IPA**"
+                                    )
+
+                                    st.code(
+                                        improvement_attempt.get(
+                                            "recognized_ipa",
+                                            "",
+                                        ),
+                                        language=None,
+                                    )
+
+
+                            # -------------------------
+                            # RETRY AGAIN
+                            # -------------------------
+
+                            if st.button(
+                                "🔄 Make another improvement attempt",
+                                key=(
+                                    f"lab_task6_retry_"
+                                    f"{task_id_string}_"
+                                    f"{nonce}"
+                                ),
+                                use_container_width=True,
+                            ):
+
+                                st.session_state[
+                                    nonce_key
+                                ] = nonce + 1
+
+                                st.rerun()
+
+
+                            # =================================
+                            # REFLECTION
+                            # =================================
+
+                            st.markdown("---")
+
+                            st.markdown(
+                                "## 5️⃣ Reflect on your improvement"
+                            )
+
+                            reflection_prompt = (
+                                content.get(
+                                    "reflection_prompt"
+                                )
+                                or (
+                                    "Dans mon deuxième essai, "
+                                    "j’ai amélioré ______."
+                                )
+                            )
+
+                            st.write(
+                                reflection_prompt
+                            )
+
+                            reflection_text = st.text_area(
+                                (
+                                    "Complete your reflection "
+                                    "in French:"
+                                ),
+                                value=(
+                                    task6_state.get(
+                                        "reflection_text",
+                                        ""
+                                    )
+                                ),
+                                placeholder=(
+                                    "Dans mon deuxième essai, "
+                                    "j’ai amélioré..."
+                                ),
+                                key=(
+                                    f"lab_task6_reflection_"
+                                    f"{task_id_string}"
+                                ),
+                                height=100,
+                            )
+
+                            if st.button(
+                                "✅ Save reflection & complete Week 1",
+                                key=(
+                                    f"lab_task6_complete_"
+                                    f"{task_id_string}"
+                                ),
+                                use_container_width=True,
+                            ):
+
+                                if not reflection_text.strip():
+
+                                    st.warning(
+                                        "Write a short reflection "
+                                        "before completing Task 6."
+                                    )
+
+                                elif not task5_is_completed:
+
+                                    st.warning(
+                                        "Complete Task 5 first. "
+                                        "Task 6 cannot be marked "
+                                        "complete while Task 5 "
+                                        "is still in progress."
+                                    )
+
+                                else:
+
+                                    task6_state[
+                                        "reflection_done"
+                                    ] = True
+
+                                    task6_state[
+                                        "reflection_text"
+                                    ] = (
+                                        reflection_text.strip()
+                                    )
+
+                                    task6_state[
+                                        "selected_goal"
+                                    ] = selected_goal
+
+                                    st.session_state[
+                                        task6_state_key
+                                    ] = task6_state
+
+                                    if student_id is not None:
+
+                                        (
+                                            saved_ok,
+                                            saved_message,
+                                        ) = (
+                                            save_speaking_lab_task_progress(
+                                                student_id=student_id,
+                                                module_id=module_id,
+                                                task_id=task.get(
+                                                    "id"
+                                                ),
+                                                status="completed",
+                                                score=float(
+                                                    task.get(
+                                                        "points"
+                                                    )
+                                                    or 2
+                                                ),
+                                                max_points=float(
+                                                    task.get(
+                                                        "points"
+                                                    )
+                                                    or 2
+                                                ),
+                                                recognized_text=(
+                                                    improvement_attempt.get(
+                                                        "recognized_text",
+                                                        "",
+                                                    )
+                                                ),
+                                                reflection=(
+                                                    reflection_text.strip()
+                                                ),
+                                                feedback=(
+                                                    "Attempt 1 and "
+                                                    "Attempt 2 compared; "
+                                                    "student reflection "
+                                                    "completed."
+                                                ),
+                                                metadata={
+                                                    "activity": (
+                                                        "retry_reflection"
+                                                    ),
+                                                    "selected_goal": (
+                                                        selected_goal
+                                                    ),
+                                                    "retry_done": True,
+                                                    "reflection_done": (
+                                                        True
+                                                    ),
+                                                    "baseline_attempt": (
+                                                        baseline_attempt
+                                                    ),
+                                                    "improvement_attempt": (
+                                                        improvement_attempt
+                                                    ),
+                                                    "comparison": (
+                                                        comparison
+                                                    ),
+                                                    "reflection_text": (
+                                                        reflection_text.strip()
+                                                    ),
+                                                },
+                                            )
+                                        )
+
+                                        if not saved_ok:
+
+                                            st.error(
+                                                "Your reflection "
+                                                "could not be saved: "
+                                                + str(
+                                                    saved_message
+                                                )
+                                            )
+
+                                        else:
+
+                                            st.rerun()
+
+                                    else:
+
+                                        st.rerun()
+
+
+                        # =================================
+                        # TASK 6 COMPLETION
+                        # =================================
+
+                        if (
+                            task6_state.get(
+                                "retry_done"
+                            )
+                            and task6_state.get(
+                                "reflection_done"
+                            )
+                        ):
+
+                            st.success(
+                                "🎉 Task 6 complete! You made "
+                                "a second performance, compared "
+                                "it with Attempt 1, and reflected "
+                                "on your improvement."
+                            )
+
+                            st.success(
+                                "🏁 Week 1 Speaking Lab complete "
+                                "when all six tasks above show "
+                                "✅ Completed."
+                            )
+
+                            st.caption(
+                                "Task 6 = 2 participation points: "
+                                "1 point for the improvement attempt "
+                                "+ 1 point for the reflection."
+                            )
 
 
         st.markdown("---")
