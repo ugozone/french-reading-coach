@@ -3295,36 +3295,1011 @@ with lab_tab:
 
                 elif task_type == "build":
 
-                    model = content.get(
-                        "model",
-                        [],
+                    st.markdown(
+                        "### 🧩 Construis : Présente-toi"
                     )
 
-                    if model:
-                        st.markdown(
-                            "#### 🧩 Build your introduction"
-                        )
-
-                        for line in model:
-                            st.write(
-                                line
-                            )
-
-                    optional = content.get(
-                        "optional_additions",
-                        [],
+                    st.write(
+                        "Build your own short introduction, check the "
+                        "French forms, practice it aloud with support, "
+                        "then try it again without reading the full script."
                     )
 
-                    if optional:
-                        st.markdown(
-                            "#### ➕ Optional expressions"
+                    task4_state_key = (
+                        f"lab_task4_state_{task_id_string}"
+                    )
+
+                    saved_task4_row = progress_by_task.get(
+                        task_id_string,
+                        {},
+                    )
+
+                    saved_task4_metadata = (
+                        saved_task4_row.get("metadata")
+                        if isinstance(saved_task4_row, dict)
+                        else {}
+                    ) or {}
+
+                    if task4_state_key not in st.session_state:
+                        st.session_state[task4_state_key] = {
+                            "form_checked": bool(
+                                saved_task4_metadata.get(
+                                    "form_checked",
+                                    False,
+                                )
+                            ),
+                            "practice_done": bool(
+                                saved_task4_metadata.get(
+                                    "practice_done",
+                                    False,
+                                )
+                            ),
+                            "no_script_done": bool(
+                                saved_task4_metadata.get(
+                                    "no_script_done",
+                                    False,
+                                )
+                            ),
+                            "practice_attempts": int(
+                                saved_task4_metadata.get(
+                                    "practice_attempts",
+                                    0,
+                                )
+                            ),
+                            "best_pronunciation_score": (
+                                saved_task4_metadata.get(
+                                    "best_pronunciation_score"
+                                )
+                            ),
+                            "built_text": (
+                                saved_task4_metadata.get(
+                                    "built_text",
+                                    "",
+                                )
+                            ),
+                            "latest_result": {},
+                        }
+
+                    task4_state = st.session_state[
+                        task4_state_key
+                    ]
+
+
+                    # -------------------------------------
+                    # STEP 1 — BUILD THE INTRODUCTION
+                    # -------------------------------------
+
+                    st.markdown("---")
+                    st.markdown(
+                        "## 1️⃣ Build your introduction"
+                    )
+
+                    student_profile = (
+                        get_student(student_id)
+                        if student_id is not None
+                        else {}
+                    ) or {}
+
+                    profile_words = (
+                        student_profile.get(
+                            "full_name",
+                            "",
+                        )
+                        .strip()
+                        .split()
+                    )
+
+                    default_name = (
+                        profile_words[0]
+                        if profile_words
+                        else ""
+                    )
+
+                    b1, b2 = st.columns(2)
+
+                    greeting = b1.selectbox(
+                        "Greeting",
+                        [
+                            "Bonjour !",
+                            "Salut !",
+                        ],
+                        key=(
+                            f"lab_task4_greeting_"
+                            f"{task_id_string}"
+                        ),
+                    )
+
+                    first_name = b2.text_input(
+                        "Your first name",
+                        value=default_name,
+                        key=(
+                            f"lab_task4_name_"
+                            f"{task_id_string}"
+                        ),
+                    ).strip()
+
+                    intro_formula = st.radio(
+                        "Choose one natural way to give your name:",
+                        [
+                            "Je m’appelle",
+                            "Moi, c’est",
+                        ],
+                        horizontal=True,
+                        key=(
+                            f"lab_task4_intro_formula_"
+                            f"{task_id_string}"
+                        ),
+                    )
+
+                    b3, b4 = st.columns(2)
+
+                    student_form = b3.selectbox(
+                        "Choose the form you want to use:",
+                        [
+                            "étudiant",
+                            "étudiante",
+                        ],
+                        key=(
+                            f"lab_task4_student_form_"
+                            f"{task_id_string}"
+                        ),
+                    )
+
+                    meeting_expression = b4.selectbox(
+                        "Meeting expression",
+                        [
+                            "Enchanté !",
+                            "Enchantée !",
+                        ],
+                        key=(
+                            f"lab_task4_enchante_"
+                            f"{task_id_string}"
+                        ),
+                    )
+
+                    ask_other = st.checkbox(
+                        "Add « Et toi ? »",
+                        value=True,
+                        key=(
+                            f"lab_task4_et_toi_"
+                            f"{task_id_string}"
+                        ),
+                    )
+
+                    closing = st.selectbox(
+                        "Leave-taking",
+                        [
+                            "À bientôt !",
+                            "Au revoir !",
+                            "Salut !",
+                        ],
+                        key=(
+                            f"lab_task4_closing_"
+                            f"{task_id_string}"
+                        ),
+                    )
+
+                    introduction_lines = [
+                        greeting,
+                    ]
+
+                    if intro_formula == "Je m’appelle":
+                        introduction_lines.append(
+                            f"Je m’appelle {first_name}."
+                        )
+                    else:
+                        introduction_lines.append(
+                            f"Moi, c’est {first_name}."
                         )
 
-                        for expression in optional:
-                            st.write(
-                                f"• {expression}"
+                    introduction_lines.append(
+                        f"Je suis {student_form}."
+                    )
+
+                    if ask_other:
+                        introduction_lines.append(
+                            "Et toi ?"
+                        )
+
+                    introduction_lines.append(
+                        meeting_expression
+                    )
+
+                    introduction_lines.append(
+                        closing
+                    )
+
+                    built_text = " ".join(
+                        introduction_lines
+                    )
+
+                    st.markdown(
+                        "#### 📝 Your introduction"
+                    )
+
+                    if first_name:
+                        st.success(
+                            built_text
+                        )
+                    else:
+                        st.warning(
+                            "Enter your first name to complete "
+                            "your introduction."
+                        )
+
+                    if first_name:
+                        try:
+                            built_ipa = phonetic_transcription(
+                                built_text
+                            )
+                        except Exception:
+                            built_ipa = ""
+
+                        if built_ipa:
+                            st.markdown(
+                                "#### 🔤 Phonetic transcription"
+                            )
+                            st.code(
+                                built_ipa,
+                                language=None,
                             )
 
+
+                    # -------------------------------------
+                    # FORM CHECK
+                    # -------------------------------------
+
+                    if st.button(
+                        "✅ Check my introduction",
+                        key=(
+                            f"lab_task4_check_"
+                            f"{task_id_string}"
+                        ),
+                        use_container_width=True,
+                    ):
+
+                        if not first_name:
+                            st.warning(
+                                "Please enter your first name first."
+                            )
+
+                        else:
+                            task4_state[
+                                "form_checked"
+                            ] = True
+
+                            task4_state[
+                                "built_text"
+                            ] = built_text
+
+                            st.session_state[
+                                task4_state_key
+                            ] = task4_state
+
+                            current_points = (
+                                1
+                                + int(
+                                    task4_state.get(
+                                        "practice_done",
+                                        False,
+                                    )
+                                )
+                                + int(
+                                    task4_state.get(
+                                        "no_script_done",
+                                        False,
+                                    )
+                                )
+                            )
+
+                            if student_id is not None:
+                                save_speaking_lab_task_progress(
+                                    student_id=student_id,
+                                    module_id=module_id,
+                                    task_id=task.get("id"),
+                                    status=(
+                                        "completed"
+                                        if current_points >= 3
+                                        else "in_progress"
+                                    ),
+                                    score=float(
+                                        current_points
+                                    ),
+                                    max_points=float(
+                                        task.get("points")
+                                        or 3
+                                    ),
+                                    feedback=(
+                                        "Personal introduction "
+                                        "form checked."
+                                    ),
+                                    metadata={
+                                        "activity": "build",
+                                        "form_checked": True,
+                                        "practice_done": (
+                                            task4_state.get(
+                                                "practice_done",
+                                                False,
+                                            )
+                                        ),
+                                        "no_script_done": (
+                                            task4_state.get(
+                                                "no_script_done",
+                                                False,
+                                            )
+                                        ),
+                                        "practice_attempts": (
+                                            task4_state.get(
+                                                "practice_attempts",
+                                                0,
+                                            )
+                                        ),
+                                        "best_pronunciation_score": (
+                                            task4_state.get(
+                                                "best_pronunciation_score"
+                                            )
+                                        ),
+                                        "built_text": built_text,
+                                    },
+                                )
+
+                            st.rerun()
+
+
+                    if task4_state.get(
+                        "form_checked"
+                    ):
+                        st.success(
+                            "✅ Form check complete."
+                        )
+
+                        st.markdown(
+                            "### 💡 Form feedback"
+                        )
+
+                        st.write(
+                            f"✅ **Greeting:** {greeting}"
+                        )
+
+                        st.write(
+                            "✅ **Introducing yourself:** "
+                            + (
+                                f"Je m’appelle {first_name}."
+                                if intro_formula
+                                == "Je m’appelle"
+                                else f"Moi, c’est {first_name}."
+                            )
+                        )
+
+                        st.write(
+                            "✅ **Student identity:** "
+                            f"Je suis {student_form}."
+                        )
+
+                        if ask_other:
+                            st.write(
+                                "✅ **Interaction:** Et toi ?"
+                            )
+
+                        st.write(
+                            "✅ **Leave-taking:** "
+                            f"{closing}"
+                        )
+
+                        st.info(
+                            "Notice that « Je m’appelle… » and "
+                            "« Moi, c’est… » are alternative ways "
+                            "to introduce yourself. You normally "
+                            "do not need to say both one after the other."
+                        )
+
+
+                    # -------------------------------------
+                    # STEP 2 — PRACTICE ALOUD
+                    # -------------------------------------
+
+                    if task4_state.get(
+                        "form_checked"
+                    ):
+
+                        st.markdown("---")
+                        st.markdown(
+                            "## 2️⃣ Practice aloud"
+                        )
+
+                        current_built_text = (
+                            task4_state.get(
+                                "built_text"
+                            )
+                            or built_text
+                        )
+
+                        if st.button(
+                            "🔊 Listen to my introduction",
+                            key=(
+                                f"lab_task4_listen_"
+                                f"{task_id_string}"
+                            ),
+                            use_container_width=True,
+                        ):
+                            play_tts_audio_safe(
+                                text=current_built_text,
+                                lang="fr",
+                                key_prefix=(
+                                    f"lab_task4_model_"
+                                    f"{task_id_string}"
+                                ),
+                            )
+
+                        scaffold_level = st.radio(
+                            "Choose your speaking support:",
+                            [
+                                "Full script",
+                                "Cue words only",
+                                "No script",
+                            ],
+                            horizontal=True,
+                            key=(
+                                f"lab_task4_scaffold_"
+                                f"{task_id_string}"
+                            ),
+                        )
+
+                        if scaffold_level == "Full script":
+                            st.info(
+                                current_built_text
+                            )
+
+                        elif scaffold_level == "Cue words only":
+                            st.info(
+                                "Bonjour/Salut → name → "
+                                "student → Et toi ? → "
+                                "Enchanté(e) → goodbye"
+                            )
+
+                        else:
+                            st.success(
+                                "🙈 Script hidden. Speak from memory."
+                            )
+
+
+                        nonce_key = (
+                            f"lab_task4_nonce_"
+                            f"{task_id_string}"
+                        )
+
+                        nonce = st.session_state.get(
+                            nonce_key,
+                            0,
+                        )
+
+                        task4_audio = st.audio_input(
+                            "🎤 Record your introduction",
+                            key=(
+                                f"lab_task4_audio_"
+                                f"{task_id_string}_"
+                                f"{nonce}"
+                            ),
+                        )
+
+                        if st.button(
+                            "✅ Analyze this attempt",
+                            key=(
+                                f"lab_task4_analyze_"
+                                f"{task_id_string}_"
+                                f"{nonce}"
+                            ),
+                            use_container_width=True,
+                        ):
+
+                            if task4_audio is None:
+                                st.warning(
+                                    "Record your introduction first."
+                                )
+
+                            else:
+                                try:
+                                    with tempfile.NamedTemporaryFile(
+                                        delete=False,
+                                        suffix=".wav",
+                                    ) as tmp_wav:
+                                        tmp_wav.write(
+                                            task4_audio.read()
+                                        )
+                                        wav_path = tmp_wav.name
+
+                                    transcript = (
+                                        transcribe_audio_file(
+                                            wav_path
+                                        )
+                                    )
+
+                                    pron_score = (
+                                        pronunciation_score(
+                                            current_built_text,
+                                            transcript,
+                                        )
+                                    )
+
+                                    feedback_data = (
+                                        word_feedback(
+                                            current_built_text,
+                                            transcript,
+                                        )
+                                    )
+
+                                    try:
+                                        liaison_points = (
+                                            build_pronunciation_targets(
+                                                current_built_text,
+                                                None,
+                                            )
+                                        )
+                                    except Exception:
+                                        liaison_points = []
+
+                                    coaching_message = (
+                                        generate_coaching_message(
+                                            pron_score,
+                                            feedback_data,
+                                            liaison_points,
+                                        )
+                                    )
+
+                                    attempt_issue = (
+                                        detect_attempt_issue(
+                                            current_built_text,
+                                            transcript,
+                                            feedback_data,
+                                        )
+                                    )
+
+                                    try:
+                                        recognized_ipa = (
+                                            phonetic_transcription(
+                                                transcript
+                                            )
+                                        )
+                                    except Exception:
+                                        recognized_ipa = ""
+
+                                    try:
+                                        target_ipa = (
+                                            phonetic_transcription(
+                                                current_built_text
+                                            )
+                                        )
+                                    except Exception:
+                                        target_ipa = ""
+
+                                    task4_state[
+                                        "practice_done"
+                                    ] = True
+
+                                    task4_state[
+                                        "practice_attempts"
+                                    ] = (
+                                        int(
+                                            task4_state.get(
+                                                "practice_attempts",
+                                                0,
+                                            )
+                                        )
+                                        + 1
+                                    )
+
+                                    previous_best = (
+                                        task4_state.get(
+                                            "best_pronunciation_score"
+                                        )
+                                    )
+
+                                    if previous_best is None:
+                                        new_best = float(
+                                            pron_score
+                                        )
+                                    else:
+                                        new_best = max(
+                                            float(
+                                                previous_best
+                                            ),
+                                            float(
+                                                pron_score
+                                            ),
+                                        )
+
+                                    task4_state[
+                                        "best_pronunciation_score"
+                                    ] = new_best
+
+                                    if (
+                                        scaffold_level
+                                        == "No script"
+                                    ):
+                                        task4_state[
+                                            "no_script_done"
+                                        ] = True
+
+                                    task4_state[
+                                        "latest_result"
+                                    ] = {
+                                        "scaffold_level": (
+                                            scaffold_level
+                                        ),
+                                        "recognized_text": (
+                                            transcript
+                                        ),
+                                        "score": float(
+                                            pron_score
+                                        ),
+                                        "feedback": (
+                                            feedback_data
+                                        ),
+                                        "coaching_message": (
+                                            coaching_message
+                                        ),
+                                        "attempt_issue": (
+                                            attempt_issue
+                                        ),
+                                        "target_ipa": (
+                                            target_ipa
+                                        ),
+                                        "recognized_ipa": (
+                                            recognized_ipa
+                                        ),
+                                    }
+
+                                    st.session_state[
+                                        task4_state_key
+                                    ] = task4_state
+
+                                    earned_points = (
+                                        int(
+                                            task4_state.get(
+                                                "form_checked",
+                                                False,
+                                            )
+                                        )
+                                        + int(
+                                            task4_state.get(
+                                                "practice_done",
+                                                False,
+                                            )
+                                        )
+                                        + int(
+                                            task4_state.get(
+                                                "no_script_done",
+                                                False,
+                                            )
+                                        )
+                                    )
+
+                                    task_complete = (
+                                        earned_points >= 3
+                                    )
+
+                                    if student_id is not None:
+                                        saved_ok, saved_message = (
+                                            save_speaking_lab_task_progress(
+                                                student_id=student_id,
+                                                module_id=module_id,
+                                                task_id=task.get(
+                                                    "id"
+                                                ),
+                                                status=(
+                                                    "completed"
+                                                    if task_complete
+                                                    else "in_progress"
+                                                ),
+                                                score=float(
+                                                    earned_points
+                                                ),
+                                                max_points=float(
+                                                    task.get(
+                                                        "points"
+                                                    )
+                                                    or 3
+                                                ),
+                                                recognized_text=(
+                                                    transcript
+                                                ),
+                                                feedback=(
+                                                    coaching_message
+                                                ),
+                                                metadata={
+                                                    "activity": (
+                                                        "build"
+                                                    ),
+                                                    "form_checked": (
+                                                        task4_state.get(
+                                                            "form_checked",
+                                                            False,
+                                                        )
+                                                    ),
+                                                    "practice_done": (
+                                                        task4_state.get(
+                                                            "practice_done",
+                                                            False,
+                                                        )
+                                                    ),
+                                                    "no_script_done": (
+                                                        task4_state.get(
+                                                            "no_script_done",
+                                                            False,
+                                                        )
+                                                    ),
+                                                    "practice_attempts": (
+                                                        task4_state.get(
+                                                            "practice_attempts",
+                                                            0,
+                                                        )
+                                                    ),
+                                                    "best_pronunciation_score": (
+                                                        new_best
+                                                    ),
+                                                    "built_text": (
+                                                        current_built_text
+                                                    ),
+                                                    "latest_scaffold_level": (
+                                                        scaffold_level
+                                                    ),
+                                                },
+                                            )
+                                        )
+
+                                        if not saved_ok:
+                                            st.error(
+                                                "Your attempt was analyzed, "
+                                                "but progress could not be saved: "
+                                                + str(
+                                                    saved_message
+                                                )
+                                            )
+
+                                    st.rerun()
+
+                                except Exception as exc:
+                                    st.error(
+                                        "Analysis failed: "
+                                        + str(exc)
+                                    )
+
+
+                        # ---------------------------------
+                        # FEEDBACK PANEL
+                        # ---------------------------------
+
+                        latest_result = (
+                            task4_state.get(
+                                "latest_result"
+                            )
+                            or {}
+                        )
+
+                        if latest_result:
+
+                            st.markdown("---")
+                            st.markdown(
+                                "### 🧭 Your speaking feedback"
+                            )
+
+                            f1, f2, f3 = st.columns(3)
+
+                            f1.metric(
+                                "Pronunciation",
+                                (
+                                    f"{latest_result.get('score', 0):.1f}/100"
+                                ),
+                            )
+
+                            f2.metric(
+                                "Best score",
+                                (
+                                    f"{float(task4_state.get('best_pronunciation_score', 0)):.1f}/100"
+                                ),
+                            )
+
+                            f3.metric(
+                                "Attempts",
+                                task4_state.get(
+                                    "practice_attempts",
+                                    0,
+                                ),
+                            )
+
+                            st.write(
+                                "**Support used:** "
+                                + latest_result.get(
+                                    "scaffold_level",
+                                    "",
+                                )
+                            )
+
+                            st.write(
+                                "**What the app heard:** "
+                                + (
+                                    latest_result.get(
+                                        "recognized_text"
+                                    )
+                                    or "No speech recognized."
+                                )
+                            )
+
+                            if latest_result.get(
+                                "attempt_issue"
+                            ):
+                                st.warning(
+                                    latest_result[
+                                        "attempt_issue"
+                                    ]
+                                )
+
+                            st.markdown(
+                                "#### 💡 Coaching"
+                            )
+
+                            render_coaching_message(
+                                latest_result.get(
+                                    "coaching_message",
+                                    "Keep practicing.",
+                                )
+                            )
+
+                            feedback_data = (
+                                latest_result.get(
+                                    "feedback",
+                                    [],
+                                )
+                            )
+
+                            if feedback_data:
+                                st.markdown(
+                                    "#### 🔎 Word-by-word feedback"
+                                )
+
+                                st.markdown(
+                                    render_colored_feedback_with_ipa(
+                                        feedback_data
+                                    ),
+                                    unsafe_allow_html=True,
+                                )
+
+                            st.markdown(
+                                "#### 🔤 IPA comparison"
+                            )
+
+                            ipa1, ipa2 = st.columns(2)
+
+                            with ipa1:
+                                st.write(
+                                    "**Target IPA**"
+                                )
+                                st.code(
+                                    latest_result.get(
+                                        "target_ipa",
+                                        "",
+                                    ),
+                                    language=None,
+                                )
+
+                            with ipa2:
+                                st.write(
+                                    "**Recognized speech IPA**"
+                                )
+                                st.code(
+                                    latest_result.get(
+                                        "recognized_ipa",
+                                        "",
+                                    ),
+                                    language=None,
+                                )
+
+
+                        # ---------------------------------
+                        # RETRY
+                        # ---------------------------------
+
+                        if task4_state.get(
+                            "practice_done"
+                        ):
+
+                            if st.button(
+                                "🔄 Make another attempt",
+                                key=(
+                                    f"lab_task4_retry_"
+                                    f"{task_id_string}_"
+                                    f"{nonce}"
+                                ),
+                                use_container_width=True,
+                            ):
+
+                                st.session_state[
+                                    nonce_key
+                                ] = nonce + 1
+
+                                st.rerun()
+
+
+                    # -------------------------------------
+                    # TASK 4 PROGRESS
+                    # -------------------------------------
+
+                    st.markdown("---")
+                    st.markdown(
+                        "### 📈 Task 4 progress"
+                    )
+
+                    milestone_1 = bool(
+                        task4_state.get(
+                            "form_checked"
+                        )
+                    )
+
+                    milestone_2 = bool(
+                        task4_state.get(
+                            "practice_done"
+                        )
+                    )
+
+                    milestone_3 = bool(
+                        task4_state.get(
+                            "no_script_done"
+                        )
+                    )
+
+                    earned_points = (
+                        int(milestone_1)
+                        + int(milestone_2)
+                        + int(milestone_3)
+                    )
+
+                    st.progress(
+                        earned_points / 3
+                    )
+
+                    st.write(
+                        (
+                            "✅"
+                            if milestone_1
+                            else "⬜"
+                        )
+                        + " 1 point — Build and check "
+                        "your introduction"
+                    )
+
+                    st.write(
+                        (
+                            "✅"
+                            if milestone_2
+                            else "⬜"
+                        )
+                        + " 1 point — Record and analyze "
+                        "a practice attempt"
+                    )
+
+                    st.write(
+                        (
+                            "✅"
+                            if milestone_3
+                            else "⬜"
+                        )
+                        + " 1 point — Record once with "
+                        "« No script »"
+                    )
+
+                    if earned_points >= 3:
+                        st.success(
+                            "🎉 Task 4 complete! You have moved "
+                            "from a written model to speaking your "
+                            "personal introduction without the script."
+                        )
+
+                    elif milestone_2 and not milestone_3:
+                        st.info(
+                            "You are almost ready for Task 5. "
+                            "Choose « No script » and make one more "
+                            "recording to complete Task 4."
+                        )
 
                 # -----------------------------------------
                 # TASK 5 — SPEAKING MISSION
