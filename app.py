@@ -3357,12 +3357,514 @@ with lab_tab:
                                     "",
                                 )
                             ),
+                            "grammar_checked": bool(
+                                saved_task4_metadata.get(
+                                    "grammar_checked",
+                                    False,
+                                )
+                            ),
+                            "grammar_score": int(
+                                saved_task4_metadata.get(
+                                    "grammar_score",
+                                    0,
+                                )
+                            ),
+                            "grammar_total": int(
+                                saved_task4_metadata.get(
+                                    "grammar_total",
+                                    6,
+                                )
+                            ),
                             "latest_result": {},
                         }
 
                     task4_state = st.session_state[
                         task4_state_key
                     ]
+
+
+                    # -------------------------------------
+                    # GRAMMAR & INTERACTION CHECKPOINT
+                    # -------------------------------------
+
+                    st.markdown("---")
+
+                    st.markdown(
+                        "## 🧠 Grammar & Interaction Checkpoint"
+                    )
+
+                    st.write(
+                        "Before building your own introduction, "
+                        "check the French forms from the "
+                        "Dossier de découverte: subject pronouns, "
+                        "stressed pronouns, s’appeler, tu/vous, "
+                        "and classroom survival French."
+                    )
+
+                    st.caption(
+                        "This checkpoint is formative. It helps you "
+                        "prepare for the 3-point speaking activity below."
+                    )
+
+                    grammar_nonce_key = (
+                        f"lab_task4_grammar_nonce_"
+                        f"{task_id_string}"
+                    )
+
+                    grammar_nonce = st.session_state.get(
+                        grammar_nonce_key,
+                        0,
+                    )
+
+                    g1 = st.radio(
+                        "1. Complete: ___ m’appelle Léa.",
+                        [
+                            "Choose...",
+                            "Je",
+                            "Moi",
+                            "Toi",
+                        ],
+                        key=(
+                            f"lab_task4_g1_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    g2 = st.radio(
+                        "2. Complete: Moi, je m’appelle Léa. Et ___ ?",
+                        [
+                            "Choose...",
+                            "je",
+                            "tu",
+                            "toi",
+                            "vous",
+                        ],
+                        key=(
+                            f"lab_task4_g2_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    g3 = st.radio(
+                        "3. You are speaking informally to another student. Which question is correct?",
+                        [
+                            "Choose...",
+                            "Comment tu t’appelles ?",
+                            "Comment vous vous appelez ?",
+                            "Comment je m’appelle ?",
+                        ],
+                        key=(
+                            f"lab_task4_g3_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    g4 = st.radio(
+                        "4. You are speaking formally to someone you do not know well. Which question is appropriate?",
+                        [
+                            "Choose...",
+                            "Comment tu t’appelles ?",
+                            "Comment vous vous appelez ?",
+                            "Et toi ?",
+                        ],
+                        key=(
+                            f"lab_task4_g4_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    g5 = st.radio(
+                        "5. Which form correctly uses s’appeler with vous?",
+                        [
+                            "Choose...",
+                            "Vous vous appelez",
+                            "Vous t’appelez",
+                            "Vous s’appelle",
+                        ],
+                        key=(
+                            f"lab_task4_g5_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    g6 = st.radio(
+                        "6. You did not hear the teacher clearly. What can you say?",
+                        [
+                            "Choose...",
+                            "Vous pouvez répéter ?",
+                            "Je m’appelle...",
+                            "Comment tu t’appelles ?",
+                        ],
+                        key=(
+                            f"lab_task4_g6_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    grammar_feedback_key = (
+                        f"lab_task4_grammar_feedback_"
+                        f"{task_id_string}"
+                    )
+
+                    if st.button(
+                        "✅ Check my grammar",
+                        key=(
+                            f"lab_task4_grammar_check_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                        use_container_width=True,
+                    ):
+
+                        answers = [
+                            {
+                                "question": (
+                                    "___ m’appelle Léa."
+                                ),
+                                "student": g1,
+                                "correct": "Je",
+                                "explanation": (
+                                    "Use the subject pronoun "
+                                    "« je » before the verb: "
+                                    "Je m’appelle Léa."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Moi, je m’appelle Léa. "
+                                    "Et ___ ?"
+                                ),
+                                "student": g2,
+                                "correct": "toi",
+                                "explanation": (
+                                    "« toi » is the stressed pronoun "
+                                    "used in « Et toi ? »."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Informal question to "
+                                    "another student"
+                                ),
+                                "student": g3,
+                                "correct": (
+                                    "Comment tu t’appelles ?"
+                                ),
+                                "explanation": (
+                                    "Use « tu » in an informal "
+                                    "interaction with a classmate "
+                                    "or peer."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Formal question"
+                                ),
+                                "student": g4,
+                                "correct": (
+                                    "Comment vous vous appelez ?"
+                                ),
+                                "explanation": (
+                                    "Use « vous » when the situation "
+                                    "calls for greater formality "
+                                    "or social distance."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "s’appeler with vous"
+                                ),
+                                "student": g5,
+                                "correct": (
+                                    "Vous vous appelez"
+                                ),
+                                "explanation": (
+                                    "The pronoun and verb form are: "
+                                    "vous + vous appelez."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Ask the teacher to repeat"
+                                ),
+                                "student": g6,
+                                "correct": (
+                                    "Vous pouvez répéter ?"
+                                ),
+                                "explanation": (
+                                    "This is useful classroom "
+                                    "survival French when you "
+                                    "need to hear something again."
+                                ),
+                            },
+                        ]
+
+                        unanswered = any(
+                            item["student"]
+                            == "Choose..."
+                            for item in answers
+                        )
+
+                        if unanswered:
+
+                            st.warning(
+                                "Answer all six questions before "
+                                "checking your grammar."
+                            )
+
+                        else:
+
+                            grammar_score = sum(
+                                1
+                                for item in answers
+                                if item["student"]
+                                == item["correct"]
+                            )
+
+                            grammar_total = len(
+                                answers
+                            )
+
+                            task4_state[
+                                "grammar_checked"
+                            ] = True
+
+                            task4_state[
+                                "grammar_score"
+                            ] = grammar_score
+
+                            task4_state[
+                                "grammar_total"
+                            ] = grammar_total
+
+                            st.session_state[
+                                task4_state_key
+                            ] = task4_state
+
+                            st.session_state[
+                                grammar_feedback_key
+                            ] = {
+                                "score": grammar_score,
+                                "total": grammar_total,
+                                "answers": answers,
+                            }
+
+                            # Save checkpoint state without
+                            # awarding Task 4 points yet.
+                            if student_id is not None:
+
+                                saved_metadata = {
+                                    "activity": "build",
+                                    "grammar_checked": True,
+                                    "grammar_score": (
+                                        grammar_score
+                                    ),
+                                    "grammar_total": (
+                                        grammar_total
+                                    ),
+                                    "form_checked": (
+                                        task4_state.get(
+                                            "form_checked",
+                                            False,
+                                        )
+                                    ),
+                                    "practice_done": (
+                                        task4_state.get(
+                                            "practice_done",
+                                            False,
+                                        )
+                                    ),
+                                    "no_script_done": (
+                                        task4_state.get(
+                                            "no_script_done",
+                                            False,
+                                        )
+                                    ),
+                                    "practice_attempts": (
+                                        task4_state.get(
+                                            "practice_attempts",
+                                            0,
+                                        )
+                                    ),
+                                    "best_pronunciation_score": (
+                                        task4_state.get(
+                                            "best_pronunciation_score"
+                                        )
+                                    ),
+                                    "built_text": (
+                                        task4_state.get(
+                                            "built_text",
+                                            "",
+                                        )
+                                    ),
+                                }
+
+                                save_speaking_lab_task_progress(
+                                    student_id=student_id,
+                                    module_id=module_id,
+                                    task_id=task.get("id"),
+                                    status="in_progress",
+                                    score=0.0,
+                                    max_points=float(
+                                        task.get("points")
+                                        or 3
+                                    ),
+                                    feedback=(
+                                        f"Grammar checkpoint: "
+                                        f"{grammar_score}/"
+                                        f"{grammar_total} correct."
+                                    ),
+                                    metadata=(
+                                        saved_metadata
+                                    ),
+                                )
+
+                            st.rerun()
+
+
+                    grammar_feedback = (
+                        st.session_state.get(
+                            grammar_feedback_key
+                        )
+                    )
+
+                    if grammar_feedback:
+
+                        st.markdown(
+                            "### 🧭 Grammar feedback"
+                        )
+
+                        gc1, gc2 = st.columns(2)
+
+                        gc1.metric(
+                            "Correct",
+                            (
+                                f"{grammar_feedback['score']}/"
+                                f"{grammar_feedback['total']}"
+                            ),
+                        )
+
+                        grammar_accuracy = (
+                            grammar_feedback["score"]
+                            / grammar_feedback["total"]
+                            * 100
+                        )
+
+                        gc2.metric(
+                            "Accuracy",
+                            f"{grammar_accuracy:.0f}%",
+                        )
+
+                        for number, item in enumerate(
+                            grammar_feedback[
+                                "answers"
+                            ],
+                            start=1,
+                        ):
+
+                            st.markdown(
+                                f"#### Question {number}"
+                            )
+
+                            if (
+                                item["student"]
+                                == item["correct"]
+                            ):
+
+                                st.success(
+                                    "✅ Correct: "
+                                    + item["correct"]
+                                )
+
+                            else:
+
+                                st.error(
+                                    "❌ Your answer: "
+                                    + item["student"]
+                                )
+
+                                st.write(
+                                    "**Correct answer:** "
+                                    + item["correct"]
+                                )
+
+                            st.info(
+                                item[
+                                    "explanation"
+                                ]
+                            )
+
+
+                        if (
+                            grammar_feedback[
+                                "score"
+                            ]
+                            == grammar_feedback[
+                                "total"
+                            ]
+                        ):
+
+                            st.success(
+                                "🌟 Excellent. You are ready "
+                                "to build your introduction."
+                            )
+
+                        else:
+
+                            st.info(
+                                "Review the corrections above. "
+                                "You may continue, or retry the "
+                                "checkpoint to improve your accuracy."
+                            )
+
+
+                        if st.button(
+                            "🔄 Try the grammar checkpoint again",
+                            key=(
+                                f"lab_task4_grammar_retry_"
+                                f"{task_id_string}_"
+                                f"{grammar_nonce}"
+                            ),
+                            use_container_width=True,
+                        ):
+
+                            st.session_state[
+                                grammar_nonce_key
+                            ] = (
+                                grammar_nonce + 1
+                            )
+
+                            st.session_state.pop(
+                                grammar_feedback_key,
+                                None,
+                            )
+
+                            st.rerun()
+
+
+                    if not task4_state.get(
+                        "grammar_checked"
+                    ):
+
+                        st.info(
+                            "Complete the grammar checkpoint above "
+                            "before moving into your personalized "
+                            "speaking practice."
+                        )
+
+                    else:
+
+                        st.success(
+                            "✅ Grammar checkpoint completed. "
+                            "Now apply the forms in your own "
+                            "introduction."
+                        )
 
 
                     # -------------------------------------
