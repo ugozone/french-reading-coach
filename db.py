@@ -1981,3 +1981,91 @@ def get_speaking_lab_progress(
 
     except Exception:
         return []
+
+
+# ===== SPEAKING LAB TASK PROGRESS SAVE =====
+
+def save_speaking_lab_task_progress(
+    student_id: str,
+    module_id: str,
+    task_id: str,
+    status: str = "completed",
+    score=None,
+    max_points=None,
+    recognized_text: str | None = None,
+    reflection: str | None = None,
+    feedback: str | None = None,
+    metadata: dict | None = None,
+):
+    """
+    Create or update one student's progress for one
+    Weekly Speaking Lab task.
+    """
+    if db_supabase is None:
+        return False, "Database is not available."
+
+    if not student_id or not module_id or not task_id:
+        return False, "Student, module, and task are required."
+
+    try:
+        payload = {
+            "student_id": student_id,
+            "module_id": module_id,
+            "task_id": task_id,
+            "status": status,
+            "score": score,
+            "max_points": max_points,
+            "recognized_text": recognized_text,
+            "reflection": reflection,
+            "feedback": feedback,
+            "metadata": metadata or {},
+            "updated_at": _utc_now_iso(),
+        }
+
+        if status == "completed":
+            payload["completed_at"] = _utc_now_iso()
+        elif status == "in_progress":
+            payload["started_at"] = _utc_now_iso()
+
+        existing = (
+            db_supabase.table("speaking_lab_progress")
+            .select("id")
+            .eq("student_id", student_id)
+            .eq("task_id", task_id)
+            .limit(1)
+            .execute()
+        )
+
+        if existing.data:
+            (
+                db_supabase.table("speaking_lab_progress")
+                .update(payload)
+                .eq("id", existing.data[0]["id"])
+                .execute()
+            )
+        else:
+            if status == "completed":
+                payload["started_at"] = _utc_now_iso()
+
+            (
+                db_supabase.table("speaking_lab_progress")
+                .insert(payload)
+                .execute()
+            )
+
+        verify = (
+            db_supabase.table("speaking_lab_progress")
+            .select("id,status,score,max_points")
+            .eq("student_id", student_id)
+            .eq("task_id", task_id)
+            .limit(1)
+            .execute()
+        )
+
+        if verify.data:
+            return True, "Speaking Lab progress saved."
+
+        return False, "The database did not confirm the saved task."
+
+    except Exception as exc:
+        return False, str(exc)

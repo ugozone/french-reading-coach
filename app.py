@@ -46,6 +46,7 @@ from db import (
     get_speaking_lab_modules,
     get_speaking_lab_tasks,
     get_speaking_lab_progress,
+    save_speaking_lab_task_progress,
     get_all_learning_activity,
     mark_assignment_started,
     mark_assignment_completed,
@@ -1826,81 +1827,516 @@ with lab_tab:
                         [],
                     )
 
-                    if dialogue:
-                        st.markdown(
-                            "#### 💬 Dialogue"
-                        )
-
-                        dialogue_text = " ".join(
-                            str(line.get("text", ""))
-                            for line in dialogue
-                        ).strip()
-
-                        if dialogue_text:
-                            if st.button(
-                                "🔊 Listen to the dialogue",
-                                key=(
-                                    "lab_dialogue_audio_"
-                                    + task_id_string
-                                ),
-                            ):
-                                play_tts_audio_safe(
-                                    text=dialogue_text,
-                                    lang="fr",
-                                    key_prefix=(
-                                        "lab_dialogue_"
-                                        + task_id_string
-                                    ),
-                                )
-
-                        for line in dialogue:
-                            speaker = line.get(
-                                "speaker",
-                                "",
-                            )
-                            text_line = line.get(
-                                "text",
-                                "",
-                            )
-
-                            st.markdown(
-                                f"**{speaker}:** "
-                                f"{text_line}"
-                            )
+                    questions = content.get(
+                        "questions",
+                        [],
+                    )
 
                     notice_targets = content.get(
                         "notice_targets",
                         [],
                     )
 
-                    if notice_targets:
-                        st.markdown(
-                            "#### 👀 What should you notice?"
-                        )
-
-                        for target in notice_targets:
-                            st.write(
-                                f"• {target}"
-                            )
-
-                    questions = content.get(
-                        "questions",
-                        [],
+                    st.markdown(
+                        "### 👂 Écoute d'abord"
                     )
 
+                    st.write(
+                        "Listen to the conversation before "
+                        "looking closely at the written dialogue. "
+                        "Try to identify how the speakers greet, "
+                        "introduce themselves, respond, and say goodbye."
+                    )
+
+                    dialogue_text = " ".join(
+                        str(line.get("text", ""))
+                        for line in dialogue
+                    ).strip()
+
+                    if dialogue_text:
+
+                        if st.button(
+                            "🔊 Listen to the conversation",
+                            key=(
+                                "lab_dialogue_audio_"
+                                + task_id_string
+                            ),
+                            use_container_width=True,
+                        ):
+                            play_tts_audio_safe(
+                                text=dialogue_text,
+                                lang="fr",
+                                key_prefix=(
+                                    "lab_dialogue_"
+                                    + task_id_string
+                                ),
+                            )
+
+                    if dialogue:
+
+                        with st.expander(
+                            "👀 Show the dialogue after listening"
+                        ):
+
+                            for line in dialogue:
+
+                                speaker = line.get(
+                                    "speaker",
+                                    "",
+                                )
+
+                                text_line = line.get(
+                                    "text",
+                                    "",
+                                )
+
+                                st.markdown(
+                                    f"**{speaker}:** "
+                                    f"{text_line}"
+                                )
+
+
+                    if notice_targets:
+
+                        with st.expander(
+                            "🎯 What am I listening for?"
+                        ):
+
+                            for target in notice_targets:
+                                st.write(
+                                    f"• {target}"
+                                )
+
+
+                    # -------------------------------------
+                    # Interactive comprehension/noticing
+                    # -------------------------------------
+
                     if questions:
+
+                        st.markdown("---")
+
                         st.markdown(
-                            "#### 🧠 Check your understanding"
+                            "### 🧠 Check what you noticed"
                         )
+
+                        st.caption(
+                            "Answer all the questions, then select "
+                            "Check my answers. You will see corrections "
+                            "immediately."
+                        )
+
+                        attempt_nonce_key = (
+                            f"lab_task1_nonce_{task_id_string}"
+                        )
+
+                        attempt_nonce = st.session_state.get(
+                            attempt_nonce_key,
+                            0,
+                        )
+
+                        feedback_key = (
+                            f"lab_task1_feedback_"
+                            f"{task_id_string}"
+                        )
+
+                        responses = []
 
                         for number, question in enumerate(
                             questions,
                             start=1,
                         ):
-                            st.write(
-                                f"{number}. "
-                                f"{question.get('question', '')}"
+
+                            response = st.text_input(
+                                (
+                                    f"{number}. "
+                                    f"{question.get('question', '')}"
+                                ),
+                                key=(
+                                    f"lab_task1_answer_"
+                                    f"{task_id_string}_"
+                                    f"{attempt_nonce}_{number}"
+                                ),
                             )
+
+                            responses.append(
+                                response
+                            )
+
+
+                        if st.button(
+                            "✅ Check my answers",
+                            key=(
+                                f"lab_task1_submit_"
+                                f"{task_id_string}_"
+                                f"{attempt_nonce}"
+                            ),
+                            use_container_width=True,
+                        ):
+
+                            if not all(
+                                str(response).strip()
+                                for response in responses
+                            ):
+
+                                st.warning(
+                                    "Please answer all four questions "
+                                    "before checking your work."
+                                )
+
+                            else:
+
+                                def _lab_answer_norm(value):
+                                    cleaned = normalize_simple(
+                                        value
+                                    )
+
+                                    return cleaned.strip(
+                                        " ?!.,;:"
+                                    )
+
+                                feedback_rows = []
+
+                                correct_count = 0
+
+                                for number, question in enumerate(
+                                    questions,
+                                    start=1,
+                                ):
+
+                                    student_answer = (
+                                        responses[number - 1]
+                                    )
+
+                                    correct_answer = str(
+                                        question.get(
+                                            "answer",
+                                            "",
+                                        )
+                                    )
+
+                                    is_correct = (
+                                        _lab_answer_norm(
+                                            student_answer
+                                        )
+                                        ==
+                                        _lab_answer_norm(
+                                            correct_answer
+                                        )
+                                    )
+
+                                    if is_correct:
+                                        correct_count += 1
+
+                                    feedback_rows.append({
+                                        "number": number,
+                                        "question": question.get(
+                                            "question",
+                                            "",
+                                        ),
+                                        "student_answer": (
+                                            student_answer
+                                        ),
+                                        "correct_answer": (
+                                            correct_answer
+                                        ),
+                                        "correct": (
+                                            is_correct
+                                        ),
+                                    })
+
+
+                                total_questions = len(
+                                    questions
+                                )
+
+                                accuracy = (
+                                    (
+                                        correct_count
+                                        / total_questions
+                                    )
+                                    * 100
+                                    if total_questions
+                                    else 0
+                                )
+
+                                # Task 1 points are completion-based.
+                                # Accuracy is stored separately as
+                                # formative learning feedback.
+                                task_points = float(
+                                    task.get("points")
+                                    or 0
+                                )
+
+                                save_metadata = {
+                                    "activity": (
+                                        "listening_notice"
+                                    ),
+                                    "correct_answers": (
+                                        correct_count
+                                    ),
+                                    "total_questions": (
+                                        total_questions
+                                    ),
+                                    "accuracy_percent": round(
+                                        accuracy,
+                                        2,
+                                    ),
+                                    "responses": (
+                                        feedback_rows
+                                    ),
+                                    "attempt_number": (
+                                        attempt_nonce + 1
+                                    ),
+                                }
+
+                                saved_ok = True
+                                saved_message = (
+                                    "Guest practice only."
+                                )
+
+                                if student_id is not None:
+
+                                    (
+                                        saved_ok,
+                                        saved_message,
+                                    ) = (
+                                        save_speaking_lab_task_progress(
+                                            student_id=student_id,
+                                            module_id=module_id,
+                                            task_id=task.get(
+                                                "id"
+                                            ),
+                                            status="completed",
+                                            score=task_points,
+                                            max_points=task_points,
+                                            feedback=(
+                                                f"{correct_count}/"
+                                                f"{total_questions} "
+                                                f"correct "
+                                                f"({accuracy:.0f}%)."
+                                            ),
+                                            metadata=(
+                                                save_metadata
+                                            ),
+                                        )
+                                    )
+
+                                if not saved_ok:
+
+                                    st.error(
+                                        "Your answers were checked, "
+                                        "but progress could not be saved: "
+                                        + str(saved_message)
+                                    )
+
+                                else:
+
+                                    st.session_state[
+                                        feedback_key
+                                    ] = {
+                                        "rows": feedback_rows,
+                                        "correct_count": (
+                                            correct_count
+                                        ),
+                                        "total_questions": (
+                                            total_questions
+                                        ),
+                                        "accuracy": accuracy,
+                                        "saved": (
+                                            student_id
+                                            is not None
+                                        ),
+                                    }
+
+                                    # Rerun so the Week Progress
+                                    # immediately changes to 1/6,
+                                    # 2/6, etc., while preserving
+                                    # the feedback panel.
+                                    st.rerun()
+
+
+                        # ---------------------------------
+                        # Immediate student feedback
+                        # ---------------------------------
+
+                        task_feedback = (
+                            st.session_state.get(
+                                feedback_key
+                            )
+                        )
+
+                        if task_feedback:
+
+                            st.markdown("---")
+
+                            st.markdown(
+                                "### 🧭 Your feedback"
+                            )
+
+                            correct_count = (
+                                task_feedback[
+                                    "correct_count"
+                                ]
+                            )
+
+                            total_questions = (
+                                task_feedback[
+                                    "total_questions"
+                                ]
+                            )
+
+                            accuracy = (
+                                task_feedback[
+                                    "accuracy"
+                                ]
+                            )
+
+                            f1, f2 = st.columns(2)
+
+                            f1.metric(
+                                "Correct",
+                                (
+                                    f"{correct_count}/"
+                                    f"{total_questions}"
+                                ),
+                            )
+
+                            f2.metric(
+                                "Listening accuracy",
+                                f"{accuracy:.0f}%",
+                            )
+
+                            for row in task_feedback[
+                                "rows"
+                            ]:
+
+                                st.markdown(
+                                    f"#### Question "
+                                    f"{row['number']}"
+                                )
+
+                                st.write(
+                                    f"**{row['question']}**"
+                                )
+
+                                st.write(
+                                    "**Your answer:** "
+                                    + (
+                                        row[
+                                            "student_answer"
+                                        ]
+                                        or "No answer"
+                                    )
+                                )
+
+                                if row["correct"]:
+
+                                    st.success(
+                                        "✅ Correct"
+                                    )
+
+                                    st.caption(
+                                        "Good. You identified "
+                                        "the expression correctly."
+                                    )
+
+                                else:
+
+                                    st.error(
+                                        "❌ Not quite."
+                                    )
+
+                                    st.write(
+                                        "**Correct answer:** "
+                                        + row[
+                                            "correct_answer"
+                                        ]
+                                    )
+
+                                    st.info(
+                                        "Listen again and notice "
+                                        "where this expression occurs "
+                                        "in the conversation."
+                                    )
+
+
+                            if task_feedback.get(
+                                "saved"
+                            ):
+
+                                st.success(
+                                    "✅ Task 1 is complete and "
+                                    "has been added to your "
+                                    "Week 1 progress."
+                                )
+
+                            else:
+
+                                st.info(
+                                    "You completed this activity "
+                                    "in guest mode. Load a saved "
+                                    "student profile if you want "
+                                    "this task counted toward "
+                                    "weekly progress."
+                                )
+
+
+                            retry_col, listen_col = (
+                                st.columns(2)
+                            )
+
+                            with retry_col:
+
+                                if st.button(
+                                    "🔄 Try the questions again",
+                                    key=(
+                                        f"lab_task1_retry_"
+                                        f"{task_id_string}_"
+                                        f"{attempt_nonce}"
+                                    ),
+                                    use_container_width=True,
+                                ):
+
+                                    st.session_state[
+                                        attempt_nonce_key
+                                    ] = (
+                                        attempt_nonce + 1
+                                    )
+
+                                    st.session_state.pop(
+                                        feedback_key,
+                                        None,
+                                    )
+
+                                    st.rerun()
+
+
+                            with listen_col:
+
+                                if st.button(
+                                    "🔊 Listen again",
+                                    key=(
+                                        f"lab_task1_relisten_"
+                                        f"{task_id_string}_"
+                                        f"{attempt_nonce}"
+                                    ),
+                                    use_container_width=True,
+                                ):
+
+                                    if dialogue_text:
+
+                                        play_tts_audio_safe(
+                                            text=(
+                                                dialogue_text
+                                            ),
+                                            lang="fr",
+                                            key_prefix=(
+                                                "lab_task1_"
+                                                "relisten_"
+                                                + task_id_string
+                                            ),
+                                        )
 
 
                 # -----------------------------------------
