@@ -1658,34 +1658,29 @@ with lab_tab:
         # WEEK HEADER
         # -------------------------------------------------
 
+        week_number = selected_module.get("week_number", "")
+        week_title = selected_module.get("title", "")
+        week_chapter = selected_module.get("chapter", "")
+        week_pages = selected_module.get("textbook_pages", "")
+        week_can_do = selected_module.get("can_do", "")
+
+        week_header_html = (
+            f'<div class="jami-card">'
+            f'<h2>FRE 101 — Week {week_number}</h2>'
+            f'<h3>{week_title}</h3>'
+            f'<p class="jami-muted">'
+            f'<strong>{week_chapter}</strong>'
+            f' &nbsp;•&nbsp; {week_pages}'
+            f'</p>'
+            f'<p>'
+            f'<strong>Can-Do:</strong><br>'
+            f'<em>{week_can_do}</em>'
+            f'</p>'
+            f'</div>'
+        )
+
         st.markdown(
-            f"""
-            <div class="jami-card">
-                <h2>
-                    FRE 101 — Week
-                    {selected_module.get('week_number', '')}
-                </h2>
-
-                <h3>
-                    {selected_module.get('title', '')}
-                </h3>
-
-                <p class="jami-muted">
-                    <strong>
-                        {selected_module.get('chapter', '')}
-                    </strong>
-                    &nbsp;•&nbsp;
-                    {selected_module.get('textbook_pages', '')}
-                </p>
-
-                <p>
-                    <strong>Can-Do:</strong><br>
-                    <em>
-                        {selected_module.get('can_do', '')}
-                    </em>
-                </p>
-            </div>
-            """,
+            week_header_html,
             unsafe_allow_html=True,
         )
 
