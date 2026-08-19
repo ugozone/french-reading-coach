@@ -2350,37 +2350,899 @@ with lab_tab:
                         [],
                     )
 
-                    if targets:
-                        st.markdown(
-                            "#### 🎤 Pronunciation targets"
-                        )
-
-                        for target in targets:
-                            st.write(
-                                f"• {target}"
-                            )
-
                     focus = content.get(
                         "focus",
                         [],
                     )
 
-                    if focus:
-                        st.markdown(
-                            "#### 🔎 Focus"
-                        )
+                    st.markdown(
+                        "### 🎤 Prononciation : Mon premier français"
+                    )
 
-                        for item in focus:
-                            st.write(
-                                f"• {item}"
+                    st.write(
+                        "Practice each Week 1 expression individually. "
+                        "Listen to the French model, examine the IPA, "
+                        "record yourself, study your feedback, and retry "
+                        "when you want to improve."
+                    )
+
+                    if focus:
+                        with st.expander(
+                            "🎯 Pronunciation focus"
+                        ):
+                            for item in focus:
+                                st.write(f"• {item}")
+
+                    # -----------------------------------------
+                    # Personalize Je m'appelle / Moi, c'est
+                    # -----------------------------------------
+
+                    student_profile = (
+                        get_student(student_id)
+                        if student_id is not None
+                        else {}
+                    ) or {}
+
+                    profile_name = (
+                        student_profile.get("full_name", "")
+                        .strip()
+                        .split()
+                    )
+
+                    default_first_name = (
+                        profile_name[0]
+                        if profile_name
+                        else "Camille"
+                    )
+
+                    practice_name = st.text_input(
+                        "Your first name for pronunciation practice:",
+                        value=default_first_name,
+                        key=f"lab_task2_name_{task_id_string}",
+                    ).strip()
+
+                    if not practice_name:
+                        practice_name = "Camille"
+
+                    st.caption(
+                        "Your name is inserted into « Je m’appelle… » "
+                        "and « Moi, c’est… » so you practice language "
+                        "you will actually use."
+                    )
+
+
+                    # -----------------------------------------
+                    # Helpers local to Task 2
+                    # -----------------------------------------
+
+                    def _lab_task2_reference(display_target):
+                        target = str(display_target).strip()
+
+                        if target.startswith("Je m’appelle"):
+                            return (
+                                f"Je m’appelle {practice_name}."
                             )
 
-                    st.info(
-                        "For now, complete these expressions in the "
-                        "🎤 Pronunciation tab. In the next build step, "
-                        "we will place the recording controls directly "
-                        "inside this weekly task."
+                        if target.startswith("Moi, c’est"):
+                            return (
+                                f"Moi, c’est {practice_name}."
+                            )
+
+                        if "Enchanté(e)" in target:
+                            return "Enchanté."
+
+                        return (
+                            target
+                            .replace("…", "")
+                            .replace("(e)", "")
+                            .strip()
+                        )
+
+
+                    results_key = (
+                        f"lab_task2_results_{task_id_string}"
                     )
+
+                    task2_results = st.session_state.get(
+                        results_key,
+                        {},
+                    )
+
+                    if not isinstance(task2_results, dict):
+                        task2_results = {}
+
+
+                    # -----------------------------------------
+                    # Overall Task 2 progress
+                    # -----------------------------------------
+
+                    completed_targets = len(
+                        [
+                            key
+                            for key, value in task2_results.items()
+                            if isinstance(value, dict)
+                            and value.get("analyzed")
+                        ]
+                    )
+
+                    total_targets = len(targets)
+
+                    st.markdown("#### 📈 Task 2 progress")
+
+                    task2_fraction = (
+                        completed_targets / total_targets
+                        if total_targets
+                        else 0
+                    )
+
+                    st.progress(task2_fraction)
+
+                    tc1, tc2 = st.columns(2)
+
+                    tc1.metric(
+                        "Expressions practiced",
+                        f"{completed_targets}/{total_targets}",
+                    )
+
+                    analyzed_scores = [
+                        float(value.get("best_score", 0))
+                        for value in task2_results.values()
+                        if isinstance(value, dict)
+                        and value.get("analyzed")
+                        and value.get("best_score") is not None
+                    ]
+
+                    tc2.metric(
+                        "Current pronunciation average",
+                        (
+                            f"{sum(analyzed_scores) / len(analyzed_scores):.1f}/100"
+                            if analyzed_scores
+                            else "—"
+                        ),
+                    )
+
+                    st.caption(
+                        "The pronunciation average is formative feedback. "
+                        "Your 5 Task 2 points are based on completing the "
+                        "required practice, not on sounding like a native speaker."
+                    )
+
+
+                    # -----------------------------------------
+                    # Individual pronunciation targets
+                    # -----------------------------------------
+
+                    for target_index, display_target in enumerate(
+                        targets,
+                        start=1,
+                    ):
+
+                        result_id = str(target_index)
+
+                        practice_text = _lab_task2_reference(
+                            display_target
+                        )
+
+                        prior_result = task2_results.get(
+                            result_id,
+                            {},
+                        )
+
+                        target_done = bool(
+                            prior_result.get("analyzed")
+                        )
+
+                        target_status = (
+                            "✅ Practiced"
+                            if target_done
+                            else "⬜ Not practiced"
+                        )
+
+                        with st.expander(
+                            (
+                                f"{target_index}. "
+                                f"{display_target} "
+                                f"— {target_status}"
+                            ),
+                            expanded=not target_done,
+                        ):
+
+                            st.markdown(
+                                f"### {practice_text}"
+                            )
+
+                            # -----------------------------
+                            # Target IPA
+                            # -----------------------------
+
+                            try:
+                                target_ipa = phonetic_transcription(
+                                    practice_text
+                                )
+                            except Exception:
+                                target_ipa = ""
+
+                            st.markdown("#### 🔤 Target IPA")
+
+                            if target_ipa:
+                                st.code(
+                                    target_ipa,
+                                    language=None,
+                                )
+                            else:
+                                st.caption(
+                                    "IPA could not be generated "
+                                    "for this expression."
+                                )
+
+
+                            # -----------------------------
+                            # Model audio
+                            # -----------------------------
+
+                            if st.button(
+                                "🔊 Listen to the French model",
+                                key=(
+                                    f"lab_task2_listen_"
+                                    f"{task_id_string}_"
+                                    f"{target_index}"
+                                ),
+                                use_container_width=True,
+                            ):
+                                play_tts_audio_safe(
+                                    text=practice_text,
+                                    lang="fr",
+                                    key_prefix=(
+                                        f"lab_task2_model_"
+                                        f"{task_id_string}_"
+                                        f"{target_index}"
+                                    ),
+                                )
+
+
+                            # -----------------------------
+                            # Fresh recording nonce
+                            # -----------------------------
+
+                            nonce_key = (
+                                f"lab_task2_nonce_"
+                                f"{task_id_string}_"
+                                f"{target_index}"
+                            )
+
+                            nonce = st.session_state.get(
+                                nonce_key,
+                                0,
+                            )
+
+                            audio_value = st.audio_input(
+                                "🎤 Record this expression",
+                                key=(
+                                    f"lab_task2_audio_"
+                                    f"{task_id_string}_"
+                                    f"{target_index}_"
+                                    f"{nonce}"
+                                ),
+                            )
+
+
+                            # -----------------------------
+                            # Analyze
+                            # -----------------------------
+
+                            if st.button(
+                                "✅ Analyze my pronunciation",
+                                key=(
+                                    f"lab_task2_analyze_"
+                                    f"{task_id_string}_"
+                                    f"{target_index}_"
+                                    f"{nonce}"
+                                ),
+                                use_container_width=True,
+                            ):
+
+                                if audio_value is None:
+                                    st.warning(
+                                        "Record the expression first, "
+                                        "then select Analyze my pronunciation."
+                                    )
+
+                                else:
+                                    try:
+                                        with tempfile.NamedTemporaryFile(
+                                            delete=False,
+                                            suffix=".wav",
+                                        ) as tmp_wav:
+                                            tmp_wav.write(
+                                                audio_value.read()
+                                            )
+                                            wav_path = tmp_wav.name
+
+                                        transcript = (
+                                            transcribe_audio_file(
+                                                wav_path
+                                            )
+                                        )
+
+                                        score = pronunciation_score(
+                                            practice_text,
+                                            transcript,
+                                        )
+
+                                        feedback = word_feedback(
+                                            practice_text,
+                                            transcript,
+                                        )
+
+                                        attempt_issue = (
+                                            detect_attempt_issue(
+                                                practice_text,
+                                                transcript,
+                                                feedback,
+                                            )
+                                        )
+
+                                        try:
+                                            liaison_points = (
+                                                build_pronunciation_targets(
+                                                    practice_text,
+                                                    None,
+                                                )
+                                            )
+                                        except Exception:
+                                            liaison_points = []
+
+                                        coaching_message = (
+                                            generate_coaching_message(
+                                                score,
+                                                feedback,
+                                                liaison_points,
+                                            )
+                                        )
+
+                                        try:
+                                            recognized_ipa = (
+                                                phonetic_transcription(
+                                                    transcript
+                                                )
+                                            )
+                                        except Exception:
+                                            recognized_ipa = ""
+
+                                        try:
+                                            acoustic = (
+                                                analyze_speech_acoustics(
+                                                    wav_path,
+                                                    transcript=transcript,
+                                                )
+                                            )
+                                        except Exception as exc:
+                                            acoustic = {
+                                                "analysis_error": str(exc)
+                                            }
+
+                                        old_best = prior_result.get(
+                                            "best_score"
+                                        )
+
+                                        best_score = (
+                                            max(
+                                                float(old_best),
+                                                float(score),
+                                            )
+                                            if old_best is not None
+                                            else float(score)
+                                        )
+
+                                        attempt_count = int(
+                                            prior_result.get(
+                                                "attempt_count",
+                                                0,
+                                            )
+                                        ) + 1
+
+                                        task2_results[
+                                            result_id
+                                        ] = {
+                                            "analyzed": True,
+                                            "display_target": (
+                                                display_target
+                                            ),
+                                            "reference_text": (
+                                                practice_text
+                                            ),
+                                            "recognized_text": (
+                                                transcript
+                                            ),
+                                            "target_ipa": (
+                                                target_ipa
+                                            ),
+                                            "recognized_ipa": (
+                                                recognized_ipa
+                                            ),
+                                            "latest_score": float(
+                                                score
+                                            ),
+                                            "best_score": (
+                                                best_score
+                                            ),
+                                            "attempt_count": (
+                                                attempt_count
+                                            ),
+                                            "feedback": feedback,
+                                            "attempt_issue": (
+                                                attempt_issue
+                                            ),
+                                            "coaching_message": (
+                                                coaching_message
+                                            ),
+                                            "acoustic": acoustic,
+                                        }
+
+                                        st.session_state[
+                                            results_key
+                                        ] = task2_results
+
+
+                                        # -----------------
+                                        # Save Weekly Lab progress
+                                        # -----------------
+
+                                        now_completed = len(
+                                            [
+                                                value
+                                                for value
+                                                in task2_results.values()
+                                                if isinstance(
+                                                    value,
+                                                    dict,
+                                                )
+                                                and value.get(
+                                                    "analyzed"
+                                                )
+                                            ]
+                                        )
+
+                                        all_complete = (
+                                            total_targets > 0
+                                            and now_completed
+                                            >= total_targets
+                                        )
+
+                                        best_scores_now = [
+                                            float(
+                                                value.get(
+                                                    "best_score",
+                                                    0,
+                                                )
+                                            )
+                                            for value
+                                            in task2_results.values()
+                                            if isinstance(
+                                                value,
+                                                dict,
+                                            )
+                                            and value.get(
+                                                "analyzed"
+                                            )
+                                            and value.get(
+                                                "best_score"
+                                            )
+                                            is not None
+                                        ]
+
+                                        average_score = (
+                                            sum(best_scores_now)
+                                            / len(best_scores_now)
+                                            if best_scores_now
+                                            else 0
+                                        )
+
+                                        metadata_results = []
+
+                                        for key in sorted(
+                                            task2_results.keys(),
+                                            key=lambda x: int(x),
+                                        ):
+                                            item = (
+                                                task2_results[key]
+                                            )
+
+                                            metadata_results.append({
+                                                "target_number": int(
+                                                    key
+                                                ),
+                                                "display_target": (
+                                                    item.get(
+                                                        "display_target"
+                                                    )
+                                                ),
+                                                "reference_text": (
+                                                    item.get(
+                                                        "reference_text"
+                                                    )
+                                                ),
+                                                "recognized_text": (
+                                                    item.get(
+                                                        "recognized_text"
+                                                    )
+                                                ),
+                                                "best_score": (
+                                                    item.get(
+                                                        "best_score"
+                                                    )
+                                                ),
+                                                "latest_score": (
+                                                    item.get(
+                                                        "latest_score"
+                                                    )
+                                                ),
+                                                "attempt_count": (
+                                                    item.get(
+                                                        "attempt_count"
+                                                    )
+                                                ),
+                                                "coaching_message": (
+                                                    item.get(
+                                                        "coaching_message"
+                                                    )
+                                                ),
+                                            })
+
+                                        if student_id is not None:
+
+                                            saved_ok, saved_message = (
+                                                save_speaking_lab_task_progress(
+                                                    student_id=student_id,
+                                                    module_id=module_id,
+                                                    task_id=task.get(
+                                                        "id"
+                                                    ),
+                                                    status=(
+                                                        "completed"
+                                                        if all_complete
+                                                        else "in_progress"
+                                                    ),
+                                                    score=(
+                                                        float(
+                                                            task.get(
+                                                                "points"
+                                                            )
+                                                            or 0
+                                                        )
+                                                        if all_complete
+                                                        else None
+                                                    ),
+                                                    max_points=float(
+                                                        task.get(
+                                                            "points"
+                                                        )
+                                                        or 0
+                                                    ),
+                                                    feedback=(
+                                                        f"{now_completed}/"
+                                                        f"{total_targets} "
+                                                        "pronunciation targets "
+                                                        "practiced. "
+                                                        f"Current formative "
+                                                        f"average: "
+                                                        f"{average_score:.1f}/100."
+                                                    ),
+                                                    metadata={
+                                                        "activity": (
+                                                            "pronunciation"
+                                                        ),
+                                                        "targets_completed": (
+                                                            now_completed
+                                                        ),
+                                                        "total_targets": (
+                                                            total_targets
+                                                        ),
+                                                        "formative_average": (
+                                                            round(
+                                                                average_score,
+                                                                2,
+                                                            )
+                                                        ),
+                                                        "target_results": (
+                                                            metadata_results
+                                                        ),
+                                                    },
+                                                )
+                                            )
+
+                                            if not saved_ok:
+                                                st.error(
+                                                    "Pronunciation feedback "
+                                                    "was generated, but the "
+                                                    "Weekly Speaking Lab "
+                                                    "progress could not be "
+                                                    "saved: "
+                                                    + str(
+                                                        saved_message
+                                                    )
+                                                )
+
+                                        st.rerun()
+
+                                    except Exception as exc:
+                                        st.error(
+                                            "Pronunciation analysis failed: "
+                                            + str(exc)
+                                        )
+
+
+                            # -----------------------------
+                            # Persisted feedback panel
+                            # -----------------------------
+
+                            result = task2_results.get(
+                                result_id
+                            )
+
+                            if result:
+
+                                st.markdown("---")
+                                st.markdown(
+                                    "### 🧭 Your pronunciation feedback"
+                                )
+
+                                r1, r2, r3 = st.columns(3)
+
+                                r1.metric(
+                                    "Latest score",
+                                    (
+                                        f"{result.get('latest_score', 0):.1f}/100"
+                                    ),
+                                )
+
+                                r2.metric(
+                                    "Best score",
+                                    (
+                                        f"{result.get('best_score', 0):.1f}/100"
+                                    ),
+                                )
+
+                                r3.metric(
+                                    "Attempts",
+                                    result.get(
+                                        "attempt_count",
+                                        1,
+                                    ),
+                                )
+
+                                st.write(
+                                    "**Target:** "
+                                    + result.get(
+                                        "reference_text",
+                                        "",
+                                    )
+                                )
+
+                                st.write(
+                                    "**What the app heard:** "
+                                    + (
+                                        result.get(
+                                            "recognized_text"
+                                        )
+                                        or "No speech recognized."
+                                    )
+                                )
+
+                                if result.get(
+                                    "attempt_issue"
+                                ):
+                                    st.warning(
+                                        result[
+                                            "attempt_issue"
+                                        ]
+                                    )
+
+                                st.markdown(
+                                    "#### 💡 Coaching"
+                                )
+
+                                render_coaching_message(
+                                    result.get(
+                                        "coaching_message",
+                                        "Keep practicing.",
+                                    )
+                                )
+
+                                feedback_data = result.get(
+                                    "feedback",
+                                    [],
+                                )
+
+                                if feedback_data:
+                                    st.markdown(
+                                        "#### 🔎 Word-by-word feedback"
+                                    )
+
+                                    st.markdown(
+                                        render_colored_feedback_with_ipa(
+                                            feedback_data
+                                        ),
+                                        unsafe_allow_html=True,
+                                    )
+
+                                st.markdown(
+                                    "#### 🔤 IPA comparison"
+                                )
+
+                                ipa1, ipa2 = st.columns(2)
+
+                                with ipa1:
+                                    st.write(
+                                        "**Target IPA**"
+                                    )
+                                    st.code(
+                                        result.get(
+                                            "target_ipa",
+                                            "",
+                                        ),
+                                        language=None,
+                                    )
+
+                                with ipa2:
+                                    st.write(
+                                        "**Recognized speech IPA**"
+                                    )
+                                    st.code(
+                                        result.get(
+                                            "recognized_ipa",
+                                            "",
+                                        ),
+                                        language=None,
+                                    )
+
+
+                                # -------------------------
+                                # Acoustic details
+                                # -------------------------
+
+                                acoustic = result.get(
+                                    "acoustic",
+                                    {},
+                                ) or {}
+
+                                with st.expander(
+                                    "📊 See acoustic & prosodic feedback"
+                                ):
+
+                                    if acoustic.get(
+                                        "analysis_error"
+                                    ):
+                                        st.info(
+                                            "Detailed acoustic analysis "
+                                            "was not available for this "
+                                            "recording."
+                                        )
+
+                                    else:
+                                        a1, a2, a3, a4 = (
+                                            st.columns(4)
+                                        )
+
+                                        a1.metric(
+                                            "Duration",
+                                            (
+                                                f"{acoustic.get('duration_s'):.2f} s"
+                                                if acoustic.get(
+                                                    "duration_s"
+                                                )
+                                                is not None
+                                                else "—"
+                                            ),
+                                        )
+
+                                        a2.metric(
+                                            "Mean F0",
+                                            (
+                                                f"{acoustic.get('f0_mean_hz'):.1f} Hz"
+                                                if acoustic.get(
+                                                    "f0_mean_hz"
+                                                )
+                                                is not None
+                                                else "—"
+                                            ),
+                                        )
+
+                                        a3.metric(
+                                            "Intensity",
+                                            (
+                                                f"{acoustic.get('intensity_mean_db'):.1f} dB"
+                                                if acoustic.get(
+                                                    "intensity_mean_db"
+                                                )
+                                                is not None
+                                                else "—"
+                                            ),
+                                        )
+
+                                        a4.metric(
+                                            "Speech rate",
+                                            (
+                                                f"{acoustic.get('speech_rate_syll_s'):.2f} syll/s"
+                                                if acoustic.get(
+                                                    "speech_rate_syll_s"
+                                                )
+                                                is not None
+                                                else "—"
+                                            ),
+                                        )
+
+                                        st.caption(
+                                            "These acoustic measures are "
+                                            "exploratory learning feedback. "
+                                            "They are not your course grade."
+                                        )
+
+
+                                # -------------------------
+                                # Retry
+                                # -------------------------
+
+                                if st.button(
+                                    "🔄 Record this expression again",
+                                    key=(
+                                        f"lab_task2_retry_"
+                                        f"{task_id_string}_"
+                                        f"{target_index}_"
+                                        f"{nonce}"
+                                    ),
+                                    use_container_width=True,
+                                ):
+
+                                    st.session_state[
+                                        nonce_key
+                                    ] = nonce + 1
+
+                                    st.rerun()
+
+
+                    # -----------------------------------------
+                    # Completion message
+                    # -----------------------------------------
+
+                    task2_results = st.session_state.get(
+                        results_key,
+                        {},
+                    )
+
+                    final_completed = len(
+                        [
+                            value
+                            for value in task2_results.values()
+                            if isinstance(value, dict)
+                            and value.get("analyzed")
+                        ]
+                    )
+
+                    if (
+                        total_targets
+                        and final_completed >= total_targets
+                    ):
+
+                        st.success(
+                            "🎉 Task 2 complete! You practiced all "
+                            "Week 1 pronunciation targets. Your "
+                            "5 participation points have been saved "
+                            "to the Weekly Speaking Lab."
+                        )
+
+                    else:
+
+                        remaining = max(
+                            total_targets - final_completed,
+                            0,
+                        )
+
+                        st.info(
+                            f"Practice {remaining} more expression"
+                            f"{'' if remaining == 1 else 's'} "
+                            "to complete Task 2."
+                        )
 
 
                 # -----------------------------------------
