@@ -3390,20 +3390,328 @@ with lab_tab:
                     st.markdown("---")
 
                     st.markdown(
-                        "## 🧠 Grammar & Interaction Checkpoint"
+                        "## 🧠 Mini-leçon : pronoms + s’appeler"
                     )
 
                     st.write(
                         "Before building your own introduction, "
-                        "check the French forms from the "
-                        "Dossier de découverte: subject pronouns, "
-                        "stressed pronouns, s’appeler, tu/vous, "
-                        "and classroom survival French."
+                        "learn how French subject pronouns, "
+                        "stressed pronouns (pronoms toniques), "
+                        "and the verb « s’appeler » work together."
                     )
 
                     st.caption(
-                        "This checkpoint is formative. It helps you "
-                        "prepare for the 3-point speaking activity below."
+                        "The full system is introduced here for recognition. "
+                        "In your Week 1 speaking, you will use "
+                        "« je », « tu » and « vous » most often."
+                    )
+
+
+                    # =====================================
+                    # PART A — SUBJECT PRONOUNS
+                    # =====================================
+
+                    st.markdown(
+                        "### 1️⃣ Les pronoms sujets"
+                    )
+
+                    st.write(
+                        "A French conjugated verb normally has an "
+                        "explicit subject. These pronouns tell us "
+                        "who is doing or experiencing the action."
+                    )
+
+                    subject_rows = [
+                        {
+                            "Sujet": "je",
+                            "Meaning": "I",
+                            "Avec s’appeler": "je m’appelle",
+                        },
+                        {
+                            "Sujet": "tu",
+                            "Meaning": "you — informal singular",
+                            "Avec s’appeler": "tu t’appelles",
+                        },
+                        {
+                            "Sujet": "il",
+                            "Meaning": "he",
+                            "Avec s’appeler": "il s’appelle",
+                        },
+                        {
+                            "Sujet": "elle",
+                            "Meaning": "she",
+                            "Avec s’appeler": "elle s’appelle",
+                        },
+                        {
+                            "Sujet": "on",
+                            "Meaning": "one / we — common spoken use",
+                            "Avec s’appeler": "on s’appelle",
+                        },
+                        {
+                            "Sujet": "nous",
+                            "Meaning": "we",
+                            "Avec s’appeler": "nous nous appelons",
+                        },
+                        {
+                            "Sujet": "vous",
+                            "Meaning": "you — formal or plural",
+                            "Avec s’appeler": "vous vous appelez",
+                        },
+                        {
+                            "Sujet": "ils",
+                            "Meaning": "they — masculine/mixed",
+                            "Avec s’appeler": "ils s’appellent",
+                        },
+                        {
+                            "Sujet": "elles",
+                            "Meaning": "they — feminine",
+                            "Avec s’appeler": "elles s’appellent",
+                        },
+                    ]
+
+                    st.table(
+                        subject_rows
+                    )
+
+
+                    # =====================================
+                    # PART B — TONIC PRONOUNS
+                    # =====================================
+
+                    st.markdown(
+                        "### 2️⃣ Les pronoms toniques"
+                    )
+
+                    st.write(
+                        "Pronoms toniques are stressed forms. "
+                        "They are useful for emphasis, contrast, "
+                        "short responses, and expressions such as "
+                        "« Et toi ? »."
+                    )
+
+                    tonic_rows = [
+                        {
+                            "Sujet": "je",
+                            "Tonique": "moi",
+                            "Exemple": "Moi, je m’appelle Léa.",
+                        },
+                        {
+                            "Sujet": "tu",
+                            "Tonique": "toi",
+                            "Exemple": "Et toi ?",
+                        },
+                        {
+                            "Sujet": "il",
+                            "Tonique": "lui",
+                            "Exemple": "Lui, il s’appelle Paul.",
+                        },
+                        {
+                            "Sujet": "elle",
+                            "Tonique": "elle",
+                            "Exemple": "Elle, elle s’appelle Marie.",
+                        },
+                        {
+                            "Sujet": "on",
+                            "Tonique": "soi*",
+                            "Exemple": "usage particulier",
+                        },
+                        {
+                            "Sujet": "nous",
+                            "Tonique": "nous",
+                            "Exemple": "Nous, nous sommes étudiants.",
+                        },
+                        {
+                            "Sujet": "vous",
+                            "Tonique": "vous",
+                            "Exemple": "Et vous ?",
+                        },
+                        {
+                            "Sujet": "ils",
+                            "Tonique": "eux",
+                            "Exemple": "Eux, ils s’appellent Marc et Ali.",
+                        },
+                        {
+                            "Sujet": "elles",
+                            "Tonique": "elles",
+                            "Exemple": "Elles, elles s’appellent Léa et Ana.",
+                        },
+                    ]
+
+                    st.table(
+                        tonic_rows
+                    )
+
+                    st.info(
+                        "💡 « soi » has special uses with an "
+                        "indefinite subject. You do not need to "
+                        "use it in your Week 1 introduction. "
+                        "When spoken « on » means « nous », "
+                        "French often uses « nous » when a "
+                        "stressed form is needed."
+                    )
+
+
+                    # =====================================
+                    # PART C — S'APPELER
+                    # =====================================
+
+                    st.markdown(
+                        "### 3️⃣ Le verbe « s’appeler »"
+                    )
+
+                    st.write(
+                        "Notice that both the subject pronoun "
+                        "and the reflexive pronoun change."
+                    )
+
+                    appeler_rows = [
+                        {
+                            "Personne": "je",
+                            "Forme": "je m’appelle",
+                        },
+                        {
+                            "Personne": "tu",
+                            "Forme": "tu t’appelles",
+                        },
+                        {
+                            "Personne": "il",
+                            "Forme": "il s’appelle",
+                        },
+                        {
+                            "Personne": "elle",
+                            "Forme": "elle s’appelle",
+                        },
+                        {
+                            "Personne": "on",
+                            "Forme": "on s’appelle",
+                        },
+                        {
+                            "Personne": "nous",
+                            "Forme": "nous nous appelons",
+                        },
+                        {
+                            "Personne": "vous",
+                            "Forme": "vous vous appelez",
+                        },
+                        {
+                            "Personne": "ils",
+                            "Forme": "ils s’appellent",
+                        },
+                        {
+                            "Personne": "elles",
+                            "Forme": "elles s’appellent",
+                        },
+                    ]
+
+                    st.table(
+                        appeler_rows
+                    )
+
+                    st.success(
+                        "🔑 Week 1 forms to remember especially:\n\n"
+                        "• Je m’appelle…\n\n"
+                        "• Comment tu t’appelles ?\n\n"
+                        "• Comment vous vous appelez ?\n\n"
+                        "• Moi, je m’appelle… Et toi ?"
+                    )
+
+
+                    # =====================================
+                    # PART D — TU / VOUS
+                    # =====================================
+
+                    st.markdown(
+                        "### 4️⃣ Tu ou vous ?"
+                    )
+
+                    tv1, tv2 = st.columns(2)
+
+                    with tv1:
+
+                        st.markdown(
+                            "#### 👥 TU"
+                        )
+
+                        st.write(
+                            "Often used with a classmate, friend, "
+                            "peer, child, or someone in an "
+                            "informal relationship."
+                        )
+
+                        st.info(
+                            "Comment tu t’appelles ?"
+                        )
+
+                    with tv2:
+
+                        st.markdown(
+                            "#### 🤝 VOUS"
+                        )
+
+                        st.write(
+                            "Used for more formal interaction "
+                            "and also when speaking to more than "
+                            "one person."
+                        )
+
+                        st.info(
+                            "Comment vous vous appelez ?"
+                        )
+
+
+                    # =====================================
+                    # PART E — SURVIVAL FRENCH
+                    # =====================================
+
+                    with st.expander(
+                        "🆘 Français de survie en classe"
+                    ):
+
+                        st.write(
+                            "Vous pouvez répéter ?"
+                        )
+
+                        st.write(
+                            "Vous pouvez parler moins vite ?"
+                        )
+
+                        st.write(
+                            "Je n’ai pas compris."
+                        )
+
+                        st.write(
+                            "Qu’est-ce que ça veut dire ?"
+                        )
+
+                        st.write(
+                            "Comment on dit… ?"
+                        )
+
+                        st.write(
+                            "Comment ça se prononce ?"
+                        )
+
+                        st.caption(
+                            "These expressions help you keep "
+                            "communicating in French even when "
+                            "you do not understand everything."
+                        )
+
+
+                    # =====================================
+                    # INTERACTIVE QUIZ
+                    # =====================================
+
+                    st.markdown("---")
+
+                    st.markdown(
+                        "## 🎯 Vérifie ce que tu as compris"
+                    )
+
+                    st.write(
+                        "Complete the questions below. "
+                        "You will receive immediate explanations "
+                        "after checking your answers."
                     )
 
                     grammar_nonce_key = (
@@ -3411,101 +3719,232 @@ with lab_tab:
                         f"{task_id_string}"
                     )
 
-                    grammar_nonce = st.session_state.get(
-                        grammar_nonce_key,
-                        0,
+                    grammar_nonce = (
+                        st.session_state.get(
+                            grammar_nonce_key,
+                            0,
+                        )
                     )
 
-                    g1 = st.radio(
-                        "1. Complete: ___ m’appelle Léa.",
+                    choose = "Choose..."
+
+
+                    # ---------------------------------
+                    # Subject pronouns
+                    # ---------------------------------
+
+                    q1 = st.radio(
+                        "1. Which subject pronoun means « I »?",
                         [
-                            "Choose...",
-                            "Je",
-                            "Moi",
-                            "Toi",
+                            choose,
+                            "je",
+                            "moi",
+                            "toi",
+                            "lui",
                         ],
                         key=(
-                            f"lab_task4_g1_"
+                            f"lab_task4_full_g1_"
                             f"{task_id_string}_"
                             f"{grammar_nonce}"
                         ),
                     )
 
-                    g2 = st.radio(
-                        "2. Complete: Moi, je m’appelle Léa. Et ___ ?",
+                    q2 = st.radio(
+                        "2. Which subject pronoun means informal singular « you »?",
                         [
-                            "Choose...",
-                            "je",
+                            choose,
                             "tu",
                             "toi",
                             "vous",
+                            "eux",
                         ],
                         key=(
-                            f"lab_task4_g2_"
+                            f"lab_task4_full_g2_"
                             f"{task_id_string}_"
                             f"{grammar_nonce}"
                         ),
                     )
 
-                    g3 = st.radio(
-                        "3. You are speaking informally to another student. Which question is correct?",
+                    q3 = st.radio(
+                        "3. Which subject pronoun can commonly mean « we » in spoken French?",
                         [
-                            "Choose...",
-                            "Comment tu t’appelles ?",
-                            "Comment vous vous appelez ?",
-                            "Comment je m’appelle ?",
+                            choose,
+                            "on",
+                            "lui",
+                            "moi",
+                            "elles",
                         ],
                         key=(
-                            f"lab_task4_g3_"
+                            f"lab_task4_full_g3_"
                             f"{task_id_string}_"
                             f"{grammar_nonce}"
                         ),
                     )
 
-                    g4 = st.radio(
-                        "4. You are speaking formally to someone you do not know well. Which question is appropriate?",
+
+                    # ---------------------------------
+                    # Tonic pronouns
+                    # ---------------------------------
+
+                    q4 = st.radio(
+                        "4. Complete: Moi, je m’appelle Léa. Et ___ ?",
                         [
-                            "Choose...",
+                            choose,
+                            "toi",
+                            "tu",
+                            "te",
+                            "il",
+                        ],
+                        key=(
+                            f"lab_task4_full_g4_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    q5 = st.radio(
+                        "5. What is the stressed pronoun corresponding to « il »?",
+                        [
+                            choose,
+                            "lui",
+                            "eux",
+                            "elle",
+                            "soi",
+                        ],
+                        key=(
+                            f"lab_task4_full_g5_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    q6 = st.radio(
+                        "6. What is the stressed pronoun corresponding to « ils »?",
+                        [
+                            choose,
+                            "eux",
+                            "lui",
+                            "nous",
+                            "elles",
+                        ],
+                        key=(
+                            f"lab_task4_full_g6_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+
+                    # ---------------------------------
+                    # s'appeler
+                    # ---------------------------------
+
+                    q7 = st.radio(
+                        "7. Complete: Nous ___ Paul et Marie.",
+                        [
+                            choose,
+                            "nous appelons",
+                            "vous appelez",
+                            "s’appellent",
+                            "m’appelle",
+                        ],
+                        key=(
+                            f"lab_task4_full_g7_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    q8 = st.radio(
+                        "8. Which form is correct with « vous »?",
+                        [
+                            choose,
+                            "vous vous appelez",
+                            "vous t’appelles",
+                            "vous s’appelle",
+                            "vous nous appelons",
+                        ],
+                        key=(
+                            f"lab_task4_full_g8_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    q9 = st.radio(
+                        "9. Complete: Elles ___ Léa et Amélie.",
+                        [
+                            choose,
+                            "s’appellent",
+                            "nous appelons",
+                            "m’appelle",
+                            "vous appelez",
+                        ],
+                        key=(
+                            f"lab_task4_full_g9_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+
+                    # ---------------------------------
+                    # Sociolinguistic use
+                    # ---------------------------------
+
+                    q10 = st.radio(
+                        "10. You are meeting another student in an informal situation. What is the appropriate question?",
+                        [
+                            choose,
                             "Comment tu t’appelles ?",
                             "Comment vous vous appelez ?",
+                            "Comment il s’appelle ?",
+                            "Comment nous nous appelons ?",
+                        ],
+                        key=(
+                            f"lab_task4_full_g10_"
+                            f"{task_id_string}_"
+                            f"{grammar_nonce}"
+                        ),
+                    )
+
+                    q11 = st.radio(
+                        "11. You are speaking formally to someone you do not know well. What is appropriate?",
+                        [
+                            choose,
+                            "Comment vous vous appelez ?",
+                            "Comment tu t’appelles ?",
                             "Et toi ?",
+                            "Tu t’appelles comment ?",
                         ],
                         key=(
-                            f"lab_task4_g4_"
+                            f"lab_task4_full_g11_"
                             f"{task_id_string}_"
                             f"{grammar_nonce}"
                         ),
                     )
 
-                    g5 = st.radio(
-                        "5. Which form correctly uses s’appeler with vous?",
-                        [
-                            "Choose...",
-                            "Vous vous appelez",
-                            "Vous t’appelez",
-                            "Vous s’appelle",
-                        ],
-                        key=(
-                            f"lab_task4_g5_"
-                            f"{task_id_string}_"
-                            f"{grammar_nonce}"
-                        ),
-                    )
 
-                    g6 = st.radio(
-                        "6. You did not hear the teacher clearly. What can you say?",
+                    # ---------------------------------
+                    # Survival French
+                    # ---------------------------------
+
+                    q12 = st.radio(
+                        "12. You did not hear the teacher clearly. What can you say?",
                         [
-                            "Choose...",
+                            choose,
                             "Vous pouvez répéter ?",
-                            "Je m’appelle...",
-                            "Comment tu t’appelles ?",
+                            "Je m’appelle…",
+                            "Et toi ?",
+                            "Enchanté !",
                         ],
                         key=(
-                            f"lab_task4_g6_"
+                            f"lab_task4_full_g12_"
                             f"{task_id_string}_"
                             f"{grammar_nonce}"
                         ),
                     )
+
 
                     grammar_feedback_key = (
                         f"lab_task4_grammar_feedback_"
@@ -3515,7 +3954,7 @@ with lab_tab:
                     if st.button(
                         "✅ Check my grammar",
                         key=(
-                            f"lab_task4_grammar_check_"
+                            f"lab_task4_full_check_"
                             f"{task_id_string}_"
                             f"{grammar_nonce}"
                         ),
@@ -3524,97 +3963,158 @@ with lab_tab:
 
                         answers = [
                             {
-                                "question": (
-                                    "___ m’appelle Léa."
-                                ),
-                                "student": g1,
-                                "correct": "Je",
+                                "question": "Subject pronoun for I",
+                                "student": q1,
+                                "correct": "je",
                                 "explanation": (
-                                    "Use the subject pronoun "
-                                    "« je » before the verb: "
-                                    "Je m’appelle Léa."
+                                    "« je » is the subject pronoun. "
+                                    "« moi » is the corresponding "
+                                    "stressed pronoun."
                                 ),
                             },
                             {
                                 "question": (
-                                    "Moi, je m’appelle Léa. "
-                                    "Et ___ ?"
+                                    "Informal singular subject pronoun"
                                 ),
-                                "student": g2,
+                                "student": q2,
+                                "correct": "tu",
+                                "explanation": (
+                                    "« tu » is the informal singular "
+                                    "subject pronoun; « toi » is its "
+                                    "stressed form."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Common spoken pronoun meaning we"
+                                ),
+                                "student": q3,
+                                "correct": "on",
+                                "explanation": (
+                                    "In everyday spoken French, "
+                                    "« on » very often replaces "
+                                    "« nous » as the grammatical subject."
+                                ),
+                            },
+                            {
+                                "question": "Et ___ ?",
+                                "student": q4,
                                 "correct": "toi",
                                 "explanation": (
-                                    "« toi » is the stressed pronoun "
-                                    "used in « Et toi ? »."
+                                    "After « et » in this short "
+                                    "contrastive question, French uses "
+                                    "the stressed pronoun « toi »."
                                 ),
                             },
                             {
                                 "question": (
-                                    "Informal question to "
-                                    "another student"
+                                    "Stressed pronoun for il"
                                 ),
-                                "student": g3,
+                                "student": q5,
+                                "correct": "lui",
+                                "explanation": (
+                                    "The subject pronoun « il » "
+                                    "corresponds to stressed « lui »."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Stressed pronoun for ils"
+                                ),
+                                "student": q6,
+                                "correct": "eux",
+                                "explanation": (
+                                    "The stressed form corresponding "
+                                    "to masculine or mixed plural "
+                                    "« ils » is « eux »."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Nous + s’appeler"
+                                ),
+                                "student": q7,
+                                "correct": "nous appelons",
+                                "explanation": (
+                                    "The complete form is "
+                                    "« nous nous appelons »: "
+                                    "subject « nous » + reflexive "
+                                    "« nous » + « appelons »."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Vous + s’appeler"
+                                ),
+                                "student": q8,
+                                "correct": "vous vous appelez",
+                                "explanation": (
+                                    "With « vous », the complete form "
+                                    "is « vous vous appelez »."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Elles + s’appeler"
+                                ),
+                                "student": q9,
+                                "correct": "s’appellent",
+                                "explanation": (
+                                    "The complete form is "
+                                    "« elles s’appellent »."
+                                ),
+                            },
+                            {
+                                "question": (
+                                    "Informal introduction question"
+                                ),
+                                "student": q10,
                                 "correct": (
                                     "Comment tu t’appelles ?"
                                 ),
                                 "explanation": (
-                                    "Use « tu » in an informal "
-                                    "interaction with a classmate "
-                                    "or peer."
+                                    "« tu » fits an informal "
+                                    "interaction with a peer."
                                 ),
                             },
                             {
                                 "question": (
-                                    "Formal question"
+                                    "Formal introduction question"
                                 ),
-                                "student": g4,
+                                "student": q11,
                                 "correct": (
                                     "Comment vous vous appelez ?"
                                 ),
                                 "explanation": (
-                                    "Use « vous » when the situation "
-                                    "calls for greater formality "
-                                    "or social distance."
+                                    "« vous » expresses the more "
+                                    "formal relationship requested "
+                                    "in this situation."
                                 ),
                             },
                             {
                                 "question": (
-                                    "s’appeler with vous"
+                                    "Ask for repetition"
                                 ),
-                                "student": g5,
-                                "correct": (
-                                    "Vous vous appelez"
-                                ),
-                                "explanation": (
-                                    "The pronoun and verb form are: "
-                                    "vous + vous appelez."
-                                ),
-                            },
-                            {
-                                "question": (
-                                    "Ask the teacher to repeat"
-                                ),
-                                "student": g6,
+                                "student": q12,
                                 "correct": (
                                     "Vous pouvez répéter ?"
                                 ),
                                 "explanation": (
-                                    "This is useful classroom "
-                                    "survival French when you "
-                                    "need to hear something again."
+                                    "« Vous pouvez répéter ? » "
+                                    "asks someone politely to repeat."
                                 ),
                             },
                         ]
 
                         unanswered = any(
-                            item["student"]
-                            == "Choose..."
+                            item["student"] == choose
                             for item in answers
                         )
 
                         if unanswered:
 
                             st.warning(
-                                "Answer all six questions before "
+                                "Answer all 12 questions before "
                                 "checking your grammar."
                             )
 
@@ -3655,55 +4155,7 @@ with lab_tab:
                                 "answers": answers,
                             }
 
-                            # Save checkpoint state without
-                            # awarding Task 4 points yet.
                             if student_id is not None:
-
-                                saved_metadata = {
-                                    "activity": "build",
-                                    "grammar_checked": True,
-                                    "grammar_score": (
-                                        grammar_score
-                                    ),
-                                    "grammar_total": (
-                                        grammar_total
-                                    ),
-                                    "form_checked": (
-                                        task4_state.get(
-                                            "form_checked",
-                                            False,
-                                        )
-                                    ),
-                                    "practice_done": (
-                                        task4_state.get(
-                                            "practice_done",
-                                            False,
-                                        )
-                                    ),
-                                    "no_script_done": (
-                                        task4_state.get(
-                                            "no_script_done",
-                                            False,
-                                        )
-                                    ),
-                                    "practice_attempts": (
-                                        task4_state.get(
-                                            "practice_attempts",
-                                            0,
-                                        )
-                                    ),
-                                    "best_pronunciation_score": (
-                                        task4_state.get(
-                                            "best_pronunciation_score"
-                                        )
-                                    ),
-                                    "built_text": (
-                                        task4_state.get(
-                                            "built_text",
-                                            "",
-                                        )
-                                    ),
-                                }
 
                                 save_speaking_lab_task_progress(
                                     student_id=student_id,
@@ -3716,17 +4168,63 @@ with lab_tab:
                                         or 3
                                     ),
                                     feedback=(
-                                        f"Grammar checkpoint: "
+                                        "Grammar mini-lesson quiz: "
                                         f"{grammar_score}/"
                                         f"{grammar_total} correct."
                                     ),
-                                    metadata=(
-                                        saved_metadata
-                                    ),
+                                    metadata={
+                                        "activity": "build",
+                                        "grammar_checked": True,
+                                        "grammar_score": (
+                                            grammar_score
+                                        ),
+                                        "grammar_total": (
+                                            grammar_total
+                                        ),
+                                        "form_checked": (
+                                            task4_state.get(
+                                                "form_checked",
+                                                False,
+                                            )
+                                        ),
+                                        "practice_done": (
+                                            task4_state.get(
+                                                "practice_done",
+                                                False,
+                                            )
+                                        ),
+                                        "no_script_done": (
+                                            task4_state.get(
+                                                "no_script_done",
+                                                False,
+                                            )
+                                        ),
+                                        "practice_attempts": (
+                                            task4_state.get(
+                                                "practice_attempts",
+                                                0,
+                                            )
+                                        ),
+                                        "best_pronunciation_score": (
+                                            task4_state.get(
+                                                "best_pronunciation_score"
+                                            )
+                                        ),
+                                        "built_text": (
+                                            task4_state.get(
+                                                "built_text",
+                                                "",
+                                            )
+                                        ),
+                                    },
                                 )
 
                             st.rerun()
 
+
+                    # =====================================
+                    # FEEDBACK
+                    # =====================================
 
                     grammar_feedback = (
                         st.session_state.get(
@@ -3736,40 +4234,53 @@ with lab_tab:
 
                     if grammar_feedback:
 
+                        st.markdown("---")
+
                         st.markdown(
                             "### 🧭 Grammar feedback"
                         )
 
-                        gc1, gc2 = st.columns(2)
+                        grammar_score_value = (
+                            grammar_feedback["score"]
+                        )
 
-                        gc1.metric(
-                            "Correct",
-                            (
-                                f"{grammar_feedback['score']}/"
-                                f"{grammar_feedback['total']}"
-                            ),
+                        grammar_total_value = (
+                            grammar_feedback["total"]
                         )
 
                         grammar_accuracy = (
-                            grammar_feedback["score"]
-                            / grammar_feedback["total"]
+                            grammar_score_value
+                            / grammar_total_value
                             * 100
                         )
 
-                        gc2.metric(
+                        gf1, gf2 = st.columns(2)
+
+                        gf1.metric(
+                            "Correct",
+                            (
+                                f"{grammar_score_value}/"
+                                f"{grammar_total_value}"
+                            ),
+                        )
+
+                        gf2.metric(
                             "Accuracy",
                             f"{grammar_accuracy:.0f}%",
                         )
 
                         for number, item in enumerate(
-                            grammar_feedback[
-                                "answers"
-                            ],
+                            grammar_feedback["answers"],
                             start=1,
                         ):
 
                             st.markdown(
                                 f"#### Question {number}"
+                            )
+
+                            st.write(
+                                "**Your answer:** "
+                                + item["student"]
                             )
 
                             if (
@@ -3778,15 +4289,13 @@ with lab_tab:
                             ):
 
                                 st.success(
-                                    "✅ Correct: "
-                                    + item["correct"]
+                                    "✅ Correct"
                                 )
 
                             else:
 
                                 st.error(
-                                    "❌ Your answer: "
-                                    + item["student"]
+                                    "❌ Not quite"
                                 )
 
                                 st.write(
@@ -3795,39 +4304,38 @@ with lab_tab:
                                 )
 
                             st.info(
-                                item[
-                                    "explanation"
-                                ]
+                                item["explanation"]
                             )
 
 
-                        if (
-                            grammar_feedback[
-                                "score"
-                            ]
-                            == grammar_feedback[
-                                "total"
-                            ]
-                        ):
+                        if grammar_accuracy == 100:
 
                             st.success(
-                                "🌟 Excellent. You are ready "
-                                "to build your introduction."
+                                "🌟 Excellent. You recognized "
+                                "the full pronoun and "
+                                "« s’appeler » system."
+                            )
+
+                        elif grammar_accuracy >= 75:
+
+                            st.success(
+                                "👍 Good work. Review the few "
+                                "forms you missed before continuing."
                             )
 
                         else:
 
                             st.info(
-                                "Review the corrections above. "
-                                "You may continue, or retry the "
-                                "checkpoint to improve your accuracy."
+                                "Review the tables above and retry. "
+                                "The goal is to understand the "
+                                "system before using it in speech."
                             )
 
 
                         if st.button(
-                            "🔄 Try the grammar checkpoint again",
+                            "🔄 Try the grammar quiz again",
                             key=(
-                                f"lab_task4_grammar_retry_"
+                                f"lab_task4_full_retry_"
                                 f"{task_id_string}_"
                                 f"{grammar_nonce}"
                             ),
@@ -3836,9 +4344,7 @@ with lab_tab:
 
                             st.session_state[
                                 grammar_nonce_key
-                            ] = (
-                                grammar_nonce + 1
-                            )
+                            ] = grammar_nonce + 1
 
                             st.session_state.pop(
                                 grammar_feedback_key,
@@ -3848,22 +4354,22 @@ with lab_tab:
                             st.rerun()
 
 
-                    if not task4_state.get(
+                    if task4_state.get(
                         "grammar_checked"
                     ):
 
-                        st.info(
-                            "Complete the grammar checkpoint above "
-                            "before moving into your personalized "
-                            "speaking practice."
+                        st.success(
+                            "✅ Grammar checkpoint completed. "
+                            "Now use these forms in your own "
+                            "introduction."
                         )
 
                     else:
 
-                        st.success(
-                            "✅ Grammar checkpoint completed. "
-                            "Now apply the forms in your own "
-                            "introduction."
+                        st.info(
+                            "Complete the grammar quiz, then "
+                            "continue to your personalized "
+                            "introduction below."
                         )
 
 
