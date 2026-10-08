@@ -1,0 +1,36 @@
+name: Stability smoke tests
+
+on:
+  push:
+    branches: [stability-fix]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python312:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Install system speech dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng
+      - name: Install application dependencies
+        run: uv pip install --python "$(command -v python)" -r requirements.txt
+      - name: Check pinned dependency consistency
+        run: python -m pip check
+      - name: Check Python syntax
+        run: python -m compileall -q app.py auth.py db.py speech.py research.py teacher_texts.py ui_helpers.py tests
+      - name: Test CPU-only PyTorch
+        run: |
+          python -c "import torch; print('PyTorch', torch.__version__); assert torch.version.cuda is None, 'Unexpected CUDA build'"
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v
