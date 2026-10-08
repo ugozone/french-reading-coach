@@ -1,11 +1,11 @@
 import os
 import tempfile
 import re
+import threading
 from difflib import SequenceMatcher
 
 from pypdf import PdfReader
 import docx2txt
-import whisper
 import streamlit as st
 
 PHONEMIZER_AVAILABLE = False
@@ -25,12 +25,15 @@ except Exception:
     PHONEMIZER_AVAILABLE = False
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner="Loading speech recognition…")
 def load_model():
+    # Import and load the model only when a learner submits a recording.
+    import whisper
     return whisper.load_model("tiny")
 
 
-model = load_model()
+# Limit simultaneous CPU-intensive Whisper inference on small servers.
+_TRANSCRIPTION_LOCK = threading.Lock()
 
 
 def normalize_text(text: str) -> str:
@@ -114,13 +117,26 @@ def get_ipa(word: str) -> str:
         return "IPA unavailable"
 
 
-def transcribe_audio_file(audio_path: str) -> str:
+def transcribe_audio_file(audio_path: str, *, cleanup: bool = False) -> str:
+    """Transcribe French speech without loading Whisper at app startup.
+
+    Calls are serialized to limit memory spikes when students submit together.
+    Files created by the caller can be removed safely after use with cleanup=True.
+    """
     try:
-        result = model.transcribe(audio_path, language="fr", fp16=False)
+        with _TRANSCRIPTION_LOCK:
+            model = load_model()
+            result = model.transcribe(audio_path, language="fr", fp16=False)
         return result["text"].strip()
     except Exception as e:
         st.error(f"Fallback transcription failed: {e}")
         return ""
+    finally:
+        if cleanup:
+            try:
+                os.remove(audio_path)
+            except OSError:
+                pass
 
 
 def extract_text_from_pdf(uploaded_file):
@@ -137,9 +153,13 @@ def extract_text_from_docx(uploaded_file):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
-    text = docx2txt.process(tmp_path)
-    os.remove(tmp_path)
-    return text.strip()
+    try:
+        return docx2txt.process(tmp_path).strip()
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
 
 
 def extract_text_from_txt(uploaded_file):
@@ -617,7 +637,7 @@ def _estimate_french_syllables(text: str) -> int:
     return total
 
 
-def analyze_speech_acoustics(audio_path: str, transcript: str = "") -> dict:
+def analyze_speech_acoustics(audio_path: str, transcript: str = "", *, cleanup: bool = False) -> dict:
     """
     Exploratory acoustic/prosodic analysis using Praat-Parselmouth.
     """
@@ -758,5 +778,11 @@ def analyze_speech_acoustics(audio_path: str, transcript: str = "") -> dict:
 
     except Exception as exc:
         result["analysis_error"] = str(exc)
+    finally:
+        if cleanup:
+            try:
+                os.remove(audio_path)
+            except OSError:
+                pass
 
     return result
