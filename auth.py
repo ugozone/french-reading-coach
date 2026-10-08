@@ -115,25 +115,43 @@ def get_supabase() -> Optional[Client]:
         return None
 
 
+# This public, unauthenticated client is used only for table operations.
+# Never sign a user in on it: module globals are shared across Streamlit sessions.
 supabase = get_supabase()
+
+
+def get_session_supabase() -> Optional[Client]:
+    """Return an independent Supabase Auth client for this browser session."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    try:
+        if "_teacher_auth_client" not in st.session_state:
+            st.session_state["_teacher_auth_client"] = create_client(
+                SUPABASE_URL, SUPABASE_KEY
+            )
+        return st.session_state["_teacher_auth_client"]
+    except Exception:
+        return None
 
 
 def sign_out_user() -> None:
     """Sign out the current user."""
-    if supabase is not None:
+    client = get_session_supabase()
+    if client is not None:
         try:
-            supabase.auth.sign_out()
+            client.auth.sign_out()
         except Exception:
             pass
 
 
 def get_current_user():
     """Return the currently signed-in user, or None."""
-    if supabase is None:
+    client = get_session_supabase()
+    if client is None:
         return None
 
     try:
-        user_response = supabase.auth.get_user()
+        user_response = client.auth.get_user()
         return user_response.user
     except Exception:
         return None
@@ -314,17 +332,20 @@ def render_teacher_password_setup() -> None:
                 return
 
             try:
-                supabase.auth.verify_otp({
+                client = get_session_supabase()
+                if client is None:
+                    raise RuntimeError("Teacher sign-in is not configured.")
+                client.auth.verify_otp({
                     "token_hash": token_hash,
                     "type": "recovery",
                 })
 
-                supabase.auth.update_user({
+                client.auth.update_user({
                     "password": new_password
                 })
 
                 try:
-                    supabase.auth.sign_out()
+                    client.auth.sign_out()
                 except Exception:
                     pass
 
@@ -461,7 +482,8 @@ def render_auth_sidebar() -> None:
         signin_password = st.text_input("Password", type="password", key="signin_password")
 
         if st.button("Sign in", key="teacher_signin_btn"):
-            if supabase is None:
+            client = get_session_supabase()
+            if client is None:
                 st.error("Teacher sign-in is not configured.")
                 return
 
@@ -470,7 +492,7 @@ def render_auth_sidebar() -> None:
                 return
 
             try:
-                supabase.auth.sign_in_with_password(
+                client.auth.sign_in_with_password(
                     {
                         "email": signin_email.strip().lower(),
                         "password": signin_password,

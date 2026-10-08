@@ -1,0 +1,53 @@
+name: Cross-platform stability smoke tests
+
+on:
+  push:
+    branches: [stability-fix]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  cross-platform:
+    name: Python 3.12 / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Install Linux native speech dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng
+      - name: Install macOS native speech dependencies
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg espeak-ng
+      - name: Install Windows native speech dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install ffmpeg espeak-ng -y --no-progress
+      - name: Install application dependencies
+        run: uv pip install --python "$(python -c 'import sys; print(sys.executable)')" -r requirements.txt
+      - name: Check pinned dependency consistency
+        run: python -m pip check
+      - name: Check Python syntax
+        run: python -m compileall -q app.py auth.py db.py speech.py research.py teacher_texts.py ui_helpers.py runtime_compat.py tests
+      - name: Check native speech support and PyTorch
+        run: |
+          python -c "import torch; print('PyTorch:', torch.__version__, 'CUDA:', torch.version.cuda); assert torch.version.cuda is None, 'Expected CPU build'"
+          python -c "from speech import get_ipa; ipa = get_ipa('bonjour'); print('French IPA (ASCII-escaped):', ascii(ipa)); assert ipa != 'IPA unavailable', 'eSpeak NG library not configured'"
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v

@@ -1,4 +1,5 @@
 import html
+import io
 import tempfile
 import streamlit as st
 from gtts import gTTS
@@ -156,10 +157,12 @@ def play_phrase_audio(phrase: str, key_suffix: str, label: str | None = None):
         button_label = label if label else f"🔊 Hear only: {phrase}"
 
         if st.button(button_label, key=f"play_phrase_{key_suffix}"):
+            # In-memory TTS works across operating systems. Windows can
+            # reject writes to a named temp file while it is still open.
             tts = gTTS(phrase, lang="fr")
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_mp3:
-                tts.save(tmp_mp3.name)
-                st.audio(tmp_mp3.name, format="audio/mp3")
+            buffer = io.BytesIO()
+            tts.write_to_fp(buffer)
+            st.audio(buffer.getvalue(), format="audio/mpeg")
     except Exception as e:
         st.error(f"Could not generate phrase audio: {e}")
 
@@ -180,7 +183,7 @@ def analyze_phrase_pronunciation(
             tmp_wav.write(audio_file.read())
             wav_path = tmp_wav.name
 
-        transcript = transcribe_audio_file(wav_path)
+        transcript = transcribe_audio_file(wav_path, cleanup=True)
 
         score = pronunciation_score(phrase, transcript)
         feedback = word_feedback(phrase, transcript)

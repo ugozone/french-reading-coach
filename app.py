@@ -575,7 +575,14 @@ if "active_guided_task_id" not in st.session_state:
 if "latest_created_task_id" not in st.session_state:
     st.session_state.latest_created_task_id = None
 
-ensure_all_seeded()
+@st.cache_data(ttl=3600, show_spinner=False)
+def seed_reference_content():
+    """Avoid repeated Supabase seed/upsert queries on every widget rerun."""
+    ensure_all_seeded()
+    return True
+
+
+seed_reference_content()
 
 st.sidebar.markdown("""
 <div style="
@@ -851,6 +858,7 @@ with tab1:
             st.error("Please type, paste, upload, or select a French text first.")
             return
 
+        wav_path = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_wav:
                 tmp_wav.write(audio_source.read())
@@ -864,6 +872,7 @@ with tab1:
             acoustic = analyze_speech_acoustics(
                 wav_path,
                 transcript=transcript,
+                cleanup=True,
             )
 
             score = pronunciation_score(reference_text, transcript)
@@ -1063,6 +1072,12 @@ with tab1:
 
         except Exception as e:
             st.error(f"Analysis failed: {e}")
+        finally:
+            if wav_path and os.path.exists(wav_path):
+                try:
+                    os.remove(wav_path)
+                except OSError:
+                    pass
 
     if audio_value is not None:
         st.audio(audio_value, format="audio/wav")
@@ -1280,7 +1295,7 @@ with tab3:
                             tmp_wav.write(section_audio.read())
                             wav_path = tmp_wav.name
 
-                        recognized_text = transcribe_audio_file(wav_path)
+                        recognized_text = transcribe_audio_file(wav_path, cleanup=True)
 
                         pron_score = pronunciation_score(
                             current_section["section_text"],
@@ -2714,6 +2729,7 @@ with lab_tab:
                                                 analyze_speech_acoustics(
                                                     wav_path,
                                                     transcript=transcript,
+                                                    cleanup=True,
                                                 )
                                             )
                                         except Exception as exc:
@@ -4818,8 +4834,7 @@ with lab_tab:
 
                                     transcript = (
                                         transcribe_audio_file(
-                                            wav_path
-                                        )
+                                            wav_path, cleanup=True)
                                     )
 
                                     pron_score = (
@@ -5924,6 +5939,7 @@ with lab_tab:
                                         analyze_speech_acoustics(
                                             wav_path,
                                             transcript=transcript,
+                                            cleanup=True,
                                         )
                                     )
                                 except Exception as exc:
@@ -7497,6 +7513,7 @@ with lab_tab:
                                             analyze_speech_acoustics(
                                                 wav_path,
                                                 transcript=transcript,
+                                                cleanup=True,
                                             )
                                         )
                                     except Exception as exc:
