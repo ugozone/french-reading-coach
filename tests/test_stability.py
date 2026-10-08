@@ -6,6 +6,7 @@ from unittest.mock import patch, Mock
 
 import speech
 import auth
+import runtime_compat
 
 
 class StabilitySmokeTests(unittest.TestCase):
@@ -65,6 +66,46 @@ class StabilitySmokeTests(unittest.TestCase):
                 second = auth.get_session_supabase()
                 self.assertIsNot(second, first)
             self.assertEqual(maker.call_count, 2)
+
+
+    def test_espeak_library_discovery_on_all_desktop_platforms(self):
+        mac_lib = runtime_compat.find_espeak_library(
+            system="Darwin",
+            environ={},
+            is_file=lambda path: path == "/opt/homebrew/lib/libespeak-ng.dylib",
+        )
+        self.assertEqual(mac_lib, "/opt/homebrew/lib/libespeak-ng.dylib")
+
+        windows_lib = runtime_compat.find_espeak_library(
+            system="Windows",
+            environ={"ProgramFiles": "C:\\Program Files"},
+            is_file=lambda path: path.endswith("libespeak-ng.dll"),
+        )
+        self.assertTrue(windows_lib.endswith("libespeak-ng.dll"))
+
+        linux_default = runtime_compat.find_espeak_library(
+            system="Linux",
+            environ={},
+            is_file=lambda path: False,
+        )
+        self.assertIsNone(linux_default)
+
+    def test_explicit_library_location_takes_precedence(self):
+        custom = "/custom/native/espeak-library"
+        detected = runtime_compat.find_espeak_library(
+            system="Windows",
+            environ={"PHONEMIZER_ESPEAK_LIBRARY": custom},
+            is_file=lambda path: False,
+        )
+        self.assertEqual(detected, custom)
+        wrapper = Mock()
+        runtime_compat.configure_espeak_library(
+            wrapper,
+            system="Linux",
+            environ={"PHONEMIZER_ESPEAK_LIBRARY": custom},
+        )
+        wrapper.set_library.assert_called_once_with(custom)
+
 
 
 if __name__ == "__main__":
