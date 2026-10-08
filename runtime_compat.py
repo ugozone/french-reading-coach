@@ -25,6 +25,7 @@ def find_espeak_library(system=None, environ=None, is_file=None):
         for prefix in ("/opt/homebrew", "/usr/local"):
             for libname in ("libespeak-ng.dylib", "libespeak.dylib"):
                 candidates.append(str(Path(prefix) / "lib" / libname))
+                candidates.append(str(Path(prefix) / "opt" / "espeak-ng" / "lib" / libname))
     elif system == "Windows":
         install_roots = [
             env.get("ProgramFiles", ""),
@@ -39,6 +40,11 @@ def find_espeak_library(system=None, environ=None, is_file=None):
                 ("Programs", "eSpeak NG", "libespeak.dll"),
             ):
                 candidates.append(str(Path(root).joinpath(*suffix)))
+        # Some package managers install the DLL in a directory on PATH.
+        for folder in env.get("PATH", "").split(";"):
+            if folder:
+                for name in ("libespeak-ng.dll", "libespeak.dll"):
+                    candidates.append(str(Path(folder) / name))
 
     return next((path for path in candidates if exists(path)), None)
 
