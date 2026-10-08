@@ -48,6 +48,6 @@ jobs:
       - name: Check native speech support and PyTorch
         run: |
           python -c "import torch; print('PyTorch:', torch.__version__, 'CUDA:', torch.version.cuda); assert torch.version.cuda is None, 'Expected CPU build'"
-          python -c "from speech import get_ipa; ipa = get_ipa('bonjour'); print('French IPA:', ipa); assert ipa != 'IPA unavailable', 'eSpeak NG library not configured'"
+          python -c "from speech import get_ipa; ipa = get_ipa('bonjour'); print('French IPA (ASCII-escaped):', ascii(ipa)); assert ipa != 'IPA unavailable', 'eSpeak NG library not configured'"
       - name: Run regression tests
         run: python -m unittest discover -s tests -v
