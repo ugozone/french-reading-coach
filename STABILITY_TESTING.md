@@ -4,12 +4,14 @@ This branch is deliberately separate from `main`. Do **not** change the live Com
 
 ## Changes made
 
-- `speech.py`: defer the Whisper import and tiny-model download until a recording is analyzed; share the cached model; serialize CPU-heavy inference to avoid multiple simultaneous Whisper runs; clean up transient DOCX/audio files.
+- `speech.py`: defer the Whisper import and tiny-model download until a recording is analyzed; share the cached model; serialize CPU-heavy inference to avoid multiple simultaneous Whisper runs; clean up transient DOCX/audio files. Discover the eSpeak native library by operating system instead of assuming a Mac-only Homebrew path.
 - `app.py`: cache seed-data initialization for 1 hour instead of issuing Supabase upserts after every Streamlit widget interaction; remove temporary WAV files after transcription or acoustic extraction, without removing audio before the acoustic analysis.
 - `auth.py`: create a separate Supabase **Auth** client in `st.session_state` for each teacher session. The existing anonymous table client and server-only Supabase database logic remain in place.
 - `requirements.txt`: use a pinned dependency stack, with CPU-only PyTorch on Linux to avoid NVIDIA/CUDA installation. The branch's test target is **Python 3.12**.
-- `tests/test_stability.py`: ensure transcription output remains correct, temporary recordings are cleaned on success/failure, and teacher Auth clients are not shared between sessions.
-- `.github/workflows/stability-smoke.yml`: run dependency installation, byte-compilation, CPU-only verification and regression tests on pushes to this branch and on pull requests.
+- `ui_helpers.py`: generate phrase audio in memory rather than writing to a still-open temporary MP3, which fails on some Windows systems; clean temporary phrase recordings.
+- `runtime_compat.py`: locate the eSpeak NG shared library on Windows and Apple Silicon/Intel Homebrew; use the Linux system-loader default and allow an explicit environment-variable override.
+- `tests/test_stability.py`: ensure transcription output remains correct, temporary recordings are cleaned on success/failure, teacher Auth clients are not shared between sessions, and eSpeak paths are discovered appropriately across operating systems.
+- `.github/workflows/stability-smoke.yml`: install dependencies, check IPA, verify Python syntax, CPU-only inference, and run regression tests on Linux, Windows, and Apple Silicon macOS runners. See [CROSS_PLATFORM_SETUP.md](CROSS_PLATFORM_SETUP.md).
 
 ## Test deployment — do not modify production
 
