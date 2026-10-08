@@ -1,12 +1,12 @@
-# Validated target for the stability-fix test deployment: Python 3.12 on Linux.
-# Keep PyTorch on the CPU index so Streamlit Cloud does not pull NVIDIA/CUDA wheels.
---extra-index-url https://download.pytorch.org/whl/cpu
+# Stability-fix test deployment target: Python 3.12 on Linux x86_64.
+# Direct CPU wheel prevents uv's PyTorch extra-index precedence issue.
+# Use the normal PyPI wheel on other platforms (e.g. development on macOS).
 
 streamlit==1.65.0
 gTTS==2.5.4
 openai-whisper==20250625
-torch==2.8.0+cpu; sys_platform == "linux"
-torch==2.8.0; sys_platform != "linux"
+torch @ https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl; sys_platform == "linux" and platform_machine == "x86_64"
+torch==2.8.0; sys_platform != "linux" or platform_machine != "x86_64"
 requests==2.34.2
 pypdf==6.19.0
 docx2txt==0.9
