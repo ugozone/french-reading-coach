@@ -8,18 +8,17 @@ from pypdf import PdfReader
 import docx2txt
 import streamlit as st
 
+from runtime_compat import configure_espeak_library
+
 PHONEMIZER_AVAILABLE = False
 try:
     from phonemizer import phonemize
     from phonemizer.backend.espeak.wrapper import EspeakWrapper
-    import platform
 
-    if platform.system() == "Darwin":
-        mac_espeak = "/opt/homebrew/lib/libespeak.dylib"
-        if os.path.exists(mac_espeak):
-            os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = mac_espeak
-            EspeakWrapper.set_library(mac_espeak)
-
+    # Honor PHONEMIZER_ESPEAK_LIBRARY or find an installed library on
+    # Apple Silicon/Intel Macs and Windows. On Linux the system loader
+    # usually resolves the library installed by packages.txt.
+    configure_espeak_library(EspeakWrapper)
     PHONEMIZER_AVAILABLE = True
 except Exception:
     PHONEMIZER_AVAILABLE = False
